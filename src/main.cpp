@@ -9,9 +9,11 @@
 #include "TBTK/Timer.h"
 #include "TBTK/UnitHandler.h"
 #include "TBTK/Visualization/MatPlotLib/Plotter.h"
+
 #include <complex>
 #include <iostream>
 #include <fstream>
+#include <limits>
 
 using namespace std;
 using namespace TBTK;
@@ -79,13 +81,26 @@ public:
 	}
 
 	complex<double> f(const Index& to, const Index& from) const{
+		
+		Vector3d toCoordinate=model.getGeometry().getCoordinate(to);
+		Vector3d fromCoordinate=model.getGeometry().getCoordinate(from);
+		
+		double smallestNorm = std::numeric_limits<double>::infinity();
+		for (int x=-1; x<2; x++){
+			for (int y=-1; y<2; y++){
+				Vector3d translatedFromCoordinate = fromCoordinate + x*unitCellBasis[0]+ y*unitCellBasis[1];
+				Vector3d difference = toCoordinate - translatedFromCoordinate;
 
-		Vector3d toCoodinate=model.getGeometry().getCoordinate(to);
-		Vector3d fromCoodinate=model.getGeometry().getCoordinate(from);
-		Vector3d difference=toCoodinate-fromCoodinate;
-
-		// return exp(-difference.norm());
-		return 1;
+				double norm = difference.norm();
+				if(smallestNorm > norm)
+					smallestNorm = norm;
+			}
+		}
+	
+		double beta = 3;
+		//When smallestNorm = 1.42, then exp->0. 
+		//Therefore, the hopping between two carbons is -t
+		return exp(-beta*(smallestNorm/(a/sqrt(3)) - 1));
 	}
 
 	// set the internal t to a newT
@@ -95,12 +110,14 @@ public:
 	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
 	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
 	void setUnitCellSize(vector<double> unitCellSize){this-> unitCellSize = unitCellSize;}
+	void setUnitCellBasis(vector<Vector3d> unitCellBasis){this-> unitCellBasis = unitCellBasis;}
 
 private:
 	complex<double> t;
 	vector<int> SIZE_X;
 	vector<int> SIZE_Y;
 	vector<double> unitCellSize;
+	vector<Vector3d> unitCellBasis;
 	int SIZE_KX;
 	int SIZE_KY;
 	double R_X;
@@ -134,9 +151,13 @@ int main(int argc, char **argv){
 	vector<int> SIZE_X = {5,4};
 	vector<int> SIZE_Y = {5,4};
 	vector<double> unitCellSize = {SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a};
+	vector<Vector3d>unitCellBasis = {
+		{unitCellSize[0], 0, 0},
+		{0, unitCellSize[1], 0}
+	};
 	vector<vector<double>> deformation = {
-		{1, SIZE_X[0]/((double)SIZE_X[1])},
-		{1, SIZE_Y[0]/((double)SIZE_Y[1])}
+		{1, 1},
+		{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}
 	};
 
 	//Reciprocal-Space - BrillouinZone
@@ -158,6 +179,7 @@ int main(int argc, char **argv){
 	tCallBack.setSIZE_KX(SIZE_KX);
 	tCallBack.setSIZE_KY(SIZE_KY);
 	tCallBack.setUnitCellSize(unitCellSize);
+	tCallBack.setUnitCellBasis(unitCellBasis);
 
 	for (int kx =0; kx < SIZE_KX; kx++){
 		for (int ky =0; ky < SIZE_KY; ky++){
@@ -207,6 +229,12 @@ int main(int argc, char **argv){
 		}
 	};
 
+	for (int layer=0; layer<2; layer++){
+		for (int site=0; site<numAtomsUnitCell; site++){
+			offSetSite[layer][site].x *= deformation[layer][0];
+			offSetSite[layer][site].y *= deformation[layer][1];
+		}
+	}
 
 	Geometry& geometry = model.getGeometry();
 	for (int kx=0; kx<SIZE_KX; kx++){
@@ -218,7 +246,7 @@ int main(int argc, char **argv){
 					for (int y=0; y<SIZE_Y[layer]; y++){
 						Vector3d yVector({0,y*ay[layer],0});					
 						for(int site=0; site<numAtomsUnitCell; site++){
-							Vector3d plaquettePosition=layerPosition+xVector+yVector;
+							Vector3d plaquettePosition=layerPosition+deformation[layer][0]*xVector+deformation[layer][1]*yVector;
 							geometry.setCoordinate({kx, ky, layer, x, y, site}, (plaquettePosition+offSetSite[layer][site]).getStdVector());
 						}
 					}

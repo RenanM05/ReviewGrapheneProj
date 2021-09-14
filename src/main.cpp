@@ -28,8 +28,8 @@ int main(int argc, char **argv){
 	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
 
 	//Setup energy window
-	const double LOWER_BOUND=-5;
-	const double UPPER_BOUND=+5;
+	const double LOWER_BOUND=-2;
+	const double UPPER_BOUND=+2;
 	const int RESOLUTION=1000;
 
 	//Gaussian smoothing parameters
@@ -38,14 +38,10 @@ int main(int argc, char **argv){
 
 	//RealSpace - LatticeInformation
 	double a=2.5;
-	const int SIZE_X = 5;
-	const int SIZE_Y = 5;
+	const int SIZE_X[2] = {5,5};
+	const int SIZE_Y[2] = {5,5};
 	const double R_X = 2*a + 2*a*0.5;
 	const double R_Y = 2*a*sqrt(3)/2;
-	int site0 = 0;
-	int site1 = 1;
-	int site2 = 2;
-	int site3 = 3;
 
 	//Reciprocal-Space - BrillouinZone
 	const int SIZE_K  = 20;
@@ -64,23 +60,23 @@ int main(int argc, char **argv){
 		for (int ky =0; ky < SIZE_KY; ky++){
 			double KY = ky*2*M_PI/SIZE_KY;
 			for(int layer=0; layer<2; layer++){
-				for(int x = 0; x < SIZE_X; x++){
-					for (int y = 0; y < SIZE_Y; y++){
+				for(int x = 0; x < SIZE_X[layer]; x++){
+					for (int y = 0; y < SIZE_Y[layer]; y++){
 						for (int spin = 0; spin<2; spin++){
-							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site1, spin}, {kx, ky, layer, x,y,site0, spin}) + HC;
-							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site2, spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
-							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site3, spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
-							if(x+1 < SIZE_X){
-								model << HoppingAmplitude(-t, {kx, ky, layer, (x+1)%SIZE_X,y,site0,spin}, {kx, ky, layer, x,y,site3, spin}) + HC;
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, 1, spin}, {kx, ky, layer, x,y,0, spin}) + HC;
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, 2, spin}, {kx, ky, layer, x,y,1, spin}) + HC;
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, 3, spin}, {kx, ky, layer, x,y,2, spin}) + HC;
+							if(x+1 < SIZE_X[layer]){
+								model << HoppingAmplitude(-t, {kx, ky, layer, (x+1)%SIZE_X[layer],y,0,spin}, {kx, ky, layer, x,y,3, spin}) + HC;
 							} else {
-								model << HoppingAmplitude(-t*exp(i*KX*(SIZE_X*R_X)), {kx, ky, layer, (x+1)%SIZE_X,y,site0,spin}, {kx, ky, layer, x,y,site3, spin}) + HC;
+								model << HoppingAmplitude(-t*exp(i*KX*(SIZE_X[layer]*R_X)), {kx, ky, layer, (x+1)%SIZE_X[layer],y,0,spin}, {kx, ky, layer, x,y,3, spin}) + HC;
 							}
-							if(y+1 < SIZE_Y){
-								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y,site0,spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
-								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y,site3,spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
+							if(y+1 < SIZE_Y[layer]){
+								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],0,spin}, {kx, ky, layer, x,y,1, spin}) + HC;
+								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],3,spin}, {kx, ky, layer, x,y,2, spin}) + HC;
 							} else {
-								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y,site0,spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
-								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y,site3,spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
+								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y[layer]*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y[layer],0,spin}, {kx, ky, layer, x,y,1, spin}) + HC;
+								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y[layer]*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y[layer],3,spin}, {kx, ky, layer, x,y,2, spin}) + HC;
 							}
 						}
 					}
@@ -111,7 +107,7 @@ int main(int argc, char **argv){
 
 	//BandStructure
 	const int K_POINTS_PER_PATH = SIZE_K/4;
-	Array<double> bandStructure({16*SIZE_X*SIZE_Y, 5*K_POINTS_PER_PATH}, 0);
+	Array<double> bandStructure({(unsigned int)32*SIZE_X[0]*SIZE_Y[0], 5*K_POINTS_PER_PATH}, 0);
 	for(unsigned int p = 0; p < 5; p++){
 		//Loop over a single path.
 		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
@@ -149,20 +145,20 @@ int main(int argc, char **argv){
 			default:
 				break;
 			}
-			for (unsigned int band=0; band <16*SIZE_X*SIZE_Y; band++){
+			for (unsigned int band=0; band <(unsigned int)32*SIZE_X[0]*SIZE_Y[0]; band++){
 				bandStructure[{band, n+p*K_POINTS_PER_PATH}]=propertyExtractor.getEigenValue({kx, ky}, band);
 			}		
 		}
 	}
 
 	double min = bandStructure[{0,0}];
-	double max = bandStructure[{16*SIZE_X*SIZE_Y-1,0}];
+	double max = bandStructure[{(unsigned int)32*SIZE_X[0]*SIZE_Y[0]-1,0}];
 
 	for(unsigned int n=0; n<5*K_POINTS_PER_PATH; n++){
 		if(min > bandStructure[{0, n}])
 			min = bandStructure[{0, n}];
-		if(max < bandStructure[{16*SIZE_X*SIZE_Y-1,n}])
-			max = bandStructure[{16*SIZE_X*SIZE_Y-1,n}];
+		if(max < bandStructure[{(unsigned int)32*SIZE_X[0]*SIZE_Y[0]-1,n}])
+			max = bandStructure[{(unsigned int)32*SIZE_X[0]*SIZE_Y[0]-1,n}];
 	}	
 
 	//Plotting
@@ -180,7 +176,7 @@ int main(int argc, char **argv){
 	plotter.setLabelX("k");
 	plotter.setLabelY("Energy");
 	plotter.setBoundsY(-1,1);
-	for (int band=0; band<16*SIZE_X*SIZE_Y; band++){
+	for (int band=0; band<(unsigned int)32*SIZE_X[0]*SIZE_Y[0]; band++){
 		plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
 	}
 	for (unsigned int n=0; n<5; n++){

@@ -9,7 +9,6 @@
 #include "TBTK/Timer.h"
 #include "TBTK/UnitHandler.h"
 #include "TBTK/Visualization/MatPlotLib/Plotter.h"
-
 #include <complex>
 #include <iostream>
 #include <fstream>
@@ -22,15 +21,12 @@ const complex<double> i(0,1);
 
 class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
-	//Construct
-	TCallBack(double a){
+	TCallBack(double a, const Model& model): model(model){
 		this->a=a;
 		double ap = a/sqrt(3);
-		R_X = 3*ap; 
-		R_Y = ap*sqrt(3);
-		// R_X = 3*a; 
-		// R_Y = a*sqrt(3);
-	};
+		R_X = 3*ap; // R_X = 3*a; 
+		R_Y = ap*sqrt(3);// R_Y = a*sqrt(3);		
+	}
 
 	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const{	
 		
@@ -48,9 +44,9 @@ public:
 
 		if(toLayer == fromLayer){
 			int layer = toLayer;
-			
+						
 			if (toX == fromX && toY == fromY){ 
-				return -t;
+				return -t*f(to, from);
 			}
 
 			// To connect plaquette
@@ -58,18 +54,18 @@ public:
 				if ( (toX == SIZE_X[layer]-1 && fromX == 0) || (fromX == SIZE_X[layer]-1 && toX == 0) ){
 					// double KX = (2*M_PI/(double)SIZE_KX)*kx;
 					double KX = ((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2)));
-					return -t*exp(i*KX*(unitCellSize[0]));
+					return -t*f(to, from)*exp(i*KX*(unitCellSize[0]));
 				} else{
-					return -t;
+					return -t*f(to, from);
 				}
 			} else if(toX == fromX){
 				if ((toY == SIZE_Y[layer]-1 && fromY == 0)  || (fromY == SIZE_Y[layer]-1 && toY == 0) 
 				){
 					// double KY = (2*M_PI/(double)SIZE_KY)*ky;
 					double KY = ((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2)));
-					return -t*exp(i*KY*(unitCellSize[1]));
+					return -t*f(to, from)*exp(i*KY*(unitCellSize[1]));
 				} else{
-					return -t;
+					return -t*f(to, from);
 				}
 			} else{
 				Streams::out << "Should never happened" ;
@@ -82,12 +78,22 @@ public:
 		} 
 	}
 
+	complex<double> f(const Index& to, const Index& from) const{
+
+		Vector3d toCoodinate=model.getGeometry().getCoordinate(to);
+		Vector3d fromCoodinate=model.getGeometry().getCoordinate(from);
+		Vector3d difference=toCoodinate-fromCoodinate;
+
+		// return exp(-difference.norm());
+		return 1;
+	}
+
 	// set the internal t to a newT
 	void setT(complex<double> t){this->t = t;}
-	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
-	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
 	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
 	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
+	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
+	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
 	void setUnitCellSize(vector<double> unitCellSize){this-> unitCellSize = unitCellSize;}
 
 private:
@@ -100,6 +106,7 @@ private:
 	double R_X;
 	double R_Y;
 	double a;
+	const Model& model;
 };
 
 
@@ -144,7 +151,7 @@ int main(int argc, char **argv){
 	Model model; 
 	model.setVerbose(true);
 
-	TCallBack tCallBack(a);
+	TCallBack tCallBack(a, model);
 	tCallBack.setT(t);
 	tCallBack.setSIZE_X(SIZE_X);
 	tCallBack.setSIZE_Y(SIZE_Y);
@@ -223,23 +230,20 @@ int main(int argc, char **argv){
 	ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 	ofstream fout1("systemInfo/geometry/coordinatesLayer1");
 
-	for (int kx=0; kx<SIZE_KX; kx++){
-		for (int ky=0; ky<SIZE_KY; ky++){
-			for(int layer=0; layer<2; layer++){
-				for(int x=0; x<SIZE_X[layer]; x++){
-					for (int y=0; y<SIZE_Y[layer]; y++){
-						for(int site=0; site<numAtomsUnitCell; site++){
-							Vector3d position = geometry.getCoordinate({kx, ky, layer, x, y, site});
-							if (layer==0)
-								fout0 << position.x << "\t" << position.y << "\n"; 
-							else
-								fout1 << position.x << "\t" << position.y << "\n"; 
-						}
-					}
+	for(int layer=0; layer<2; layer++){
+		for(int x=0; x<SIZE_X[layer]; x++){
+			for (int y=0; y<SIZE_Y[layer]; y++){
+				for(int site=0; site<numAtomsUnitCell; site++){
+					Vector3d position = geometry.getCoordinate({0, 0, layer, x, y, site});
+					if (layer==0)
+						fout0 << position.x << "\t" << position.y << "\n"; 
+					else
+						fout1 << position.x << "\t" << position.y << "\n"; 
 				}
 			}
-		} 
+		}
 	}
+	
 
 	fout0.close();
 	fout1.close();
@@ -265,7 +269,7 @@ int main(int argc, char **argv){
 
 	//BandStructure
 	const int K_POINTS_PER_PATH = SIZE_K/2;
-	Array<double> bandStructure({((unsigned int) 16)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), 5*K_POINTS_PER_PATH}, 0);
+	Array<double> bandStructure({((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), 5*K_POINTS_PER_PATH}, 0);
 	for(unsigned int p = 0; p < 5; p++){
 		//Loop over a single path.
 		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
@@ -303,20 +307,20 @@ int main(int argc, char **argv){
 			default:
 				break;
 			}
-			for (unsigned int band=0; band <((unsigned int) 16)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
+			for (unsigned int band=0; band <((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
 				bandStructure[{band, n+p*K_POINTS_PER_PATH}] = propertyExtractor.getEigenValue({kx, ky}, band);
 			}
 		}
 	}
 
 	double min = bandStructure[{0,0}];
-	double max = bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,0}];
+	double max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,0}];
 
 	for(unsigned int n=0; n<5*K_POINTS_PER_PATH; n++){
 		if(min > bandStructure[{0, n}])
 			min = bandStructure[{0, n}];
-		if(max < bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}])
-			max = bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}];
+		if(max < bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}])
+			max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}];
 	}	
 
 	//Plotting
@@ -334,7 +338,7 @@ int main(int argc, char **argv){
 	plotter.setLabelX("k");
 	plotter.setLabelY("Energy");
 	plotter.setBoundsY(-1,1);
-	for (int band=0; band<16*SIZE_X[0]*SIZE_Y[0]; band++){
+	for (int band=0; band<8*SIZE_X[0]*SIZE_Y[0]; band++){
 		plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
 	}
 	for (unsigned int n=0; n<5; n++){

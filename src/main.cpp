@@ -12,6 +12,7 @@
 
 #include <complex>
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 using namespace TBTK;
@@ -23,18 +24,19 @@ class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
 	//Construct
 	TCallBack(double a){
-		R_X = 2*(a) + 2*(a)*0.5; 
-		R_Y = 2*(a)*sqrt(3)/2;
+		this->a=a;
+		double ap = a/sqrt(3);
+		R_X = 3*ap; 
+		R_Y = ap*sqrt(3);
+		// R_X = 3*a; 
+		// R_Y = a*sqrt(3);
 	};
 
 	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const{	
 		
 		int kx = to[0];
 		int ky = to[1];
-		
-		double KX = kx*2*M_PI/SIZE_KX;
-		double KY = ky*2*M_PI/SIZE_KY;
-		
+			
 		int toLayer = to[2];
 		int fromLayer = from[2];
 		
@@ -54,14 +56,18 @@ public:
 			// To connect plaquette
 			if (toY == fromY){
 				if ( (toX == SIZE_X[layer]-1 && fromX == 0) || (fromX == SIZE_X[layer]-1 && toX == 0) ){
-					return -t*exp(i*KX*(SIZE_X[layer]*R_X));
+					// double KX = (2*M_PI/(double)SIZE_KX)*kx;
+					double KX = ((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2)));
+					return -t*exp(i*KX*(unitCellSize[0]));
 				} else{
 					return -t;
 				}
 			} else if(toX == fromX){
 				if ((toY == SIZE_Y[layer]-1 && fromY == 0)  || (fromY == SIZE_Y[layer]-1 && toY == 0) 
 				){
-					return -t*exp(i*KY*(SIZE_Y[layer]*R_Y));
+					// double KY = (2*M_PI/(double)SIZE_KY)*ky;
+					double KY = ((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2)));
+					return -t*exp(i*KY*(unitCellSize[1]));
 				} else{
 					return -t;
 				}
@@ -82,15 +88,18 @@ public:
 	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
 	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
 	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
+	void setUnitCellSize(vector<double> unitCellSize){this-> unitCellSize = unitCellSize;}
 
 private:
 	complex<double> t;
 	vector<int> SIZE_X;
 	vector<int> SIZE_Y;
+	vector<double> unitCellSize;
 	int SIZE_KX;
 	int SIZE_KY;
 	double R_X;
 	double R_Y;
+	double a;
 };
 
 
@@ -114,13 +123,17 @@ int main(int argc, char **argv){
 
 	//RealSpace - LatticeInformation
 	double a=2.5;
-	vector<int> SIZE_X = {5,5};
-	vector<int> SIZE_Y = {5,5};
-	const double R_X = 2*a + 2*a*0.5;
-	const double R_Y = 2*a*sqrt(3)/2;
+	const int numAtomsUnitCell = 4;
+	vector<int> SIZE_X = {5,4};
+	vector<int> SIZE_Y = {5,4};
+	vector<double> unitCellSize = {SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a};
+	vector<vector<double>> deformation = {
+		{1, SIZE_X[0]/((double)SIZE_X[1])},
+		{1, SIZE_Y[0]/((double)SIZE_Y[1])}
+	};
 
 	//Reciprocal-Space - BrillouinZone
-	const int SIZE_K  = 20;
+	const int SIZE_K  = 12;
 	const int SIZE_KX = SIZE_K;
 	const int SIZE_KY = SIZE_K;
 	
@@ -137,6 +150,7 @@ int main(int argc, char **argv){
 	tCallBack.setSIZE_Y(SIZE_Y);
 	tCallBack.setSIZE_KX(SIZE_KX);
 	tCallBack.setSIZE_KY(SIZE_KY);
+	tCallBack.setUnitCellSize(unitCellSize);
 
 	for (int kx =0; kx < SIZE_KX; kx++){
 		for (int ky =0; ky < SIZE_KY; ky++){
@@ -157,6 +171,80 @@ int main(int argc, char **argv){
 
 	model.construct();
 
+	double ax[2]={
+		2*(a/sqrt(3)) + 2*(a/sqrt(3))*0.5,
+		2*(a/sqrt(3)) + 2*(a/sqrt(3))*0.5
+	};
+	
+	double ay[2]={
+		2*(a/sqrt(3))*sqrt(3)/2,
+		2*(a/sqrt(3))*sqrt(3)/2
+	};
+
+	double layerSeparation = 3.4;
+	Vector3d R_layer({0,0, layerSeparation});
+	
+	double ap = a/sqrt(3);
+	Vector3d offSetSite[2][4]={
+		{
+			Vector3d({0,0,0}),
+			Vector3d({ap*0.5, ap*sqrt(3)/2, 0}),
+			Vector3d({ap*0.5+ap, ap*sqrt(3)/2, 0}),
+			Vector3d({2*ap*0.5+ap, 0, 0})
+		 },
+		{
+			Vector3d({0,0,0}),
+			Vector3d({ap*0.5, ap*sqrt(3)/2, 0}),
+			Vector3d({ap*0.5+ap, ap*sqrt(3)/2, 0}),
+			Vector3d({2*ap*0.5+ap, 0, 0})
+		}
+	};
+
+
+	Geometry& geometry = model.getGeometry();
+	for (int kx=0; kx<SIZE_KX; kx++){
+		for (int ky=0; ky<SIZE_KY; ky++){
+			for(int layer=0; layer<2; layer++){
+				Vector3d layerPosition=layer*R_layer;
+				for(int x=0; x<SIZE_X[layer]; x++){
+					Vector3d xVector({x*ax[layer],0,0});
+					for (int y=0; y<SIZE_Y[layer]; y++){
+						Vector3d yVector({0,y*ay[layer],0});					
+						for(int site=0; site<numAtomsUnitCell; site++){
+							Vector3d plaquettePosition=layerPosition+xVector+yVector;
+							geometry.setCoordinate({kx, ky, layer, x, y, site}, (plaquettePosition+offSetSite[layer][site]).getStdVector());
+						}
+					}
+				}
+			}
+		} 
+	}
+
+	ofstream fout0("systemInfo/geometry/coordinatesLayer0");
+	ofstream fout1("systemInfo/geometry/coordinatesLayer1");
+
+	for (int kx=0; kx<SIZE_KX; kx++){
+		for (int ky=0; ky<SIZE_KY; ky++){
+			for(int layer=0; layer<2; layer++){
+				for(int x=0; x<SIZE_X[layer]; x++){
+					for (int y=0; y<SIZE_Y[layer]; y++){
+						for(int site=0; site<numAtomsUnitCell; site++){
+							Vector3d position = geometry.getCoordinate({kx, ky, layer, x, y, site});
+							if (layer==0)
+								fout0 << position.x << "\t" << position.y << "\n"; 
+							else
+								fout1 << position.x << "\t" << position.y << "\n"; 
+						}
+					}
+				}
+			}
+		} 
+	}
+
+	fout0.close();
+	fout1.close();
+
+
 	//Setup and run Solver
 	Timer::tick("Setup and run Solver");
 	Solver::BlockDiagonalizer solver;
@@ -176,8 +264,8 @@ int main(int argc, char **argv){
 	dos = Smooth::gaussian(dos, SMOOTHING_SIGMA, SMOOTHING_WINDOW);
 
 	//BandStructure
-	const int K_POINTS_PER_PATH = SIZE_K/4;
-	Array<double> bandStructure({(unsigned int)16*SIZE_X[0]*SIZE_Y[0], 5*K_POINTS_PER_PATH}, 0);
+	const int K_POINTS_PER_PATH = SIZE_K/2;
+	Array<double> bandStructure({((unsigned int) 16)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), 5*K_POINTS_PER_PATH}, 0);
 	for(unsigned int p = 0; p < 5; p++){
 		//Loop over a single path.
 		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
@@ -193,19 +281,19 @@ int main(int argc, char **argv){
 				break;
 			//X-M
 			case 1:
-				kx = SIZE_K/4;
+				kx = SIZE_K/2;
 				ky = n;
 				break;
 			
 			//M-Y
 			case 2: 
-				kx = SIZE_K/4-n;
-				ky = SIZE_K/4;
+				kx = SIZE_K/2-n;
+				ky = SIZE_K/2;
 				break;
 			//Y-G
 			case 3: 
 				kx = 0;
-				ky = (SIZE_K/4-n);
+				ky = (SIZE_K/2-n);
 				break;
 			//G-M
 			case 4: 
@@ -215,20 +303,20 @@ int main(int argc, char **argv){
 			default:
 				break;
 			}
-			for (unsigned int band=0; band <(unsigned int)16*SIZE_X[0]*SIZE_Y[0]; band++){
-				bandStructure[{band, n+p*K_POINTS_PER_PATH}]=propertyExtractor.getEigenValue({kx, ky}, band);
-			}		
+			for (unsigned int band=0; band <((unsigned int) 16)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
+				bandStructure[{band, n+p*K_POINTS_PER_PATH}] = propertyExtractor.getEigenValue({kx, ky}, band);
+			}
 		}
 	}
 
 	double min = bandStructure[{0,0}];
-	double max = bandStructure[{(unsigned int)16*SIZE_X[0]*SIZE_Y[0]-1,0}];
+	double max = bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,0}];
 
 	for(unsigned int n=0; n<5*K_POINTS_PER_PATH; n++){
 		if(min > bandStructure[{0, n}])
 			min = bandStructure[{0, n}];
-		if(max < bandStructure[{(unsigned int)16*SIZE_X[0]*SIZE_Y[0]-1,n}])
-			max = bandStructure[{(unsigned int)16*SIZE_X[0]*SIZE_Y[0]-1,n}];
+		if(max < bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}])
+			max = bandStructure[{(unsigned int)16*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}];
 	}	
 
 	//Plotting
@@ -266,14 +354,7 @@ int main(int argc, char **argv){
 	r[1] = Vector3d({-a/2, a*sqrt(3)/2, 0});
 	r[2] = Vector3d({0, 0, a});
 
-	Vector3d r_AB[3];
-	r_AB[0] = (r[0]+2*r[1])/3;
-	r_AB[1] = -r[1]+r_AB[0];
-	r_AB[2] = -r[0]-r[1]+r_AB[0];
 
-*/
-
-/* 
 	Vector3d k[3];
 	for(unsigned int n=0; n<3; n++){
 		k[n] = 2*M_PI*r[(n+1)%3]*r[(n+2)%3]/(
@@ -284,27 +365,13 @@ int main(int argc, char **argv){
 	vector<unsigned int> numMeshPoints = {2*SIZE_X, 2*SIZE_Y};
 	BrillouinZone brillouinZone({{k[0].x, k[0].y},{k[1].x, k[1].y}}, SpacePartition::MeshType::Nodal);
 	vector<vector<double>> mesh = brillouinZone.getMinorMesh(numMeshPoints);
-*/
 
-/*  
 	//High Symmetry Points
 	Vector3d G({     0,       0,   0});
 	Vector3d M({M_PI/a, -M_PI/a,   0});
 	Vector3d K({4*M_PI/(3*a),       0,   0});
     vector<vector<Vector3d>> paths = {{G,M},{M,K},{K,G}};
 
-	const int K_POINTS_PER_PATH = SIZE_K/2;
-	Array<double> bandStructure({4, 3*K_POINTS_PER_PATH}, 0);
+	Array<double> bandStructure({num_of_states, number_of_paths*K_POINTS_PER_PATH}, 0);
 	Range interpolator(0, 1, K_POINTS_PER_PATH);
-
-	double min = bandStructure[{0,0}];
-	double max = bandStructure[{3,0}];
-
-	for(unsigned int n=0; n<3*K_POINTS_PER_PATH; n++){
-	 	if(min > bandStructure[{0,n}])
-	 		min = bandStructure[{0,n}];
-
-	 	if(max < bandStructure[{3,n}])
-	 		max = bandStructure[{3,n}];
-	 }
 */

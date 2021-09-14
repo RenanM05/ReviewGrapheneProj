@@ -59,8 +59,6 @@ int main(int argc, char **argv){
 	Model model; 
 	model.setVerbose(true);
 
-
-
 	for (int kx =0; kx < SIZE_KX; kx++){
  		double KX = kx*2*M_PI/SIZE_KX;
 		for (int ky =0; ky < SIZE_KY; ky++){
@@ -117,38 +115,33 @@ int main(int argc, char **argv){
 	for(unsigned int p = 0; p < 5; p++){
 		//Loop over a single path.
 		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
-			// G - X - M - Y - G
-			// G = 0.0, 0.0, 0.0 *(pi/a)
-			// X = 0.5, 0.0, 0.0 *(pi/a)
-			// M = 0.5, 0.5, 0.0 *(pi/a)
-			// Y = 0.0, 0.5, 0.0 *(pi/a)
 			
 			int kx;
 			int ky;
 			switch (p)
 			{
-			// G - X		
+			//G-X		
 			case 0:
 				kx = n;
 				ky = 0;
 				break;
-			// X - M
+			//X-M
 			case 1:
 				kx = SIZE_K/4;
 				ky = n;
 				break;
 			
-			// M - Y
+			//M-Y
 			case 2: 
 				kx = SIZE_K/4-n;
 				ky = SIZE_K/4;
 				break;
-			// Y - G
+			//Y-G
 			case 3: 
 				kx = 0;
 				ky = (SIZE_K/4-n);
 				break;
-			// G - M
+			//G-M
 			case 4: 
 				kx = n;
 				ky = n;
@@ -156,10 +149,8 @@ int main(int argc, char **argv){
 			default:
 				break;
 			}
-			//Extract the eigenvalues for the current k-point.
-		
 			for (unsigned int band=0; band <16*SIZE_X*SIZE_Y; band++){
-				bandStructure[{band, n+p*K_POINTS_PER_PATH}] = propertyExtractor.getEigenValue({kx, ky}, band);
+				bandStructure[{band, n+p*K_POINTS_PER_PATH}]=propertyExtractor.getEigenValue({kx, ky}, band);
 			}		
 		}
 	}

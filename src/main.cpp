@@ -1,15 +1,17 @@
 #include "TBTK/BrillouinZone.h"
 #include "TBTK/Model.h"
-#include "TBTK/Property/DOS.h"
 #include "TBTK/PropertyExtractor/BlockDiagonalizer.h"
+#include "TBTK/Property/DOS.h"
 #include "TBTK/Range.h"
-#include "TBTK/Solver/BlockDiagonalizer.h"
 #include "TBTK/Smooth.h"
+#include "TBTK/Solver/BlockDiagonalizer.h"
 #include "TBTK/TBTK.h"
+#include "TBTK/Timer.h"
 #include "TBTK/UnitHandler.h"
 #include "TBTK/Visualization/MatPlotLib/Plotter.h"
 
 #include <complex>
+#include <iostream>
 
 using namespace std;
 using namespace TBTK;
@@ -18,184 +20,234 @@ using namespace Visualization::MatPlotLib;
 const complex<double> i(0,1);
 
 int main(int argc, char **argv){
-	//Initialize TBTK.
+
+	///Initialize TBTK
 	Initialize();
-	UnitHandler::setScales({"1 rad", "1 C", "1 pcs", "1 eV", "1 Ao", "1 K", "1 s"});
 
-	//Lattice parameters
-	double a = 2.5;
-	const int SIZE_X = 2;
-	const int SIZE_Y = 2;
+	//Units
+	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
 
-	// //Hamiltonian parameters;
-	complex<double> t=1.0;
-	// double gamma = 0.3; 
-	// double voltage = 0.0;
+	//Setup energy window
+	const double LOWER_BOUND=-5;
+	const double UPPER_BOUND=+5;
+	const int RESOLUTION=1000;
 
-	// //Auxiliar
-	int SITE_0 = 0;
-	int SITE_1 = 1;
-	int SITE_2 = 2;
-	int SITE_3 = 3;
+	//Gaussian smoothing parameters
+	const double SMOOTHING_SIGMA = 0.1;
+	const unsigned int SMOOTHING_WINDOW = 51;
 
-	// int LAYER0 = 0;
-	// int LAYER1 = 1;
+	//RealSpace - LatticeInformation
+	double a=2.5;
+	const int SIZE_X = 5;
+	const int SIZE_Y = 5;
+	const double R_X = 2*a + 2*a*0.5;
+	const double R_Y = 2*a*sqrt(3)/2;
+	int site0 = 0;
+	int site1 = 1;
+	int site2 = 2;
+	int site3 = 3;
 
-	// int subLatticeA=0;
-	// int subLatticeB=1;
-
-	//Lattice Vector
-	Vector3d latticeVector[3];
-	latticeVector[0] = Vector3d({   a, 			 0,	0});
-	latticeVector[1] = Vector3d({-a/2, a*sqrt(3)/2,	0});
-	latticeVector[2] = Vector3d({	0,			 0, a});
-
-	//Define NN for siteA
-	Vector3d nnVector[3];
-	nnVector[0] =  latticeVector[0] + 2*latticeVector[1]/3;
-	nnVector[1] = -latticeVector[1] + nnVector[0];
-	nnVector[2] = -latticeVector[0] - nnVector[1] + nnVector[0];
-
-	//Calculate the reciprocal lattice vectors.
-	Vector3d k[3];
-	for(unsigned int n=0; n<3; n++){
-		k[n] = 2*M_PI*latticeVector[(n+1)%3]*latticeVector[(n+2)%3]/(
-			Vector3d::dotProduct(latticeVector[n], latticeVector[(n+1)%3]*latticeVector[(n+2)%3])
-		);
-	}
-
-	//Setup BZ
-	vector<unsigned int> numMeshPoints = {2*SIZE_X, 2*SIZE_Y};
+	//Reciprocal-Space - BrillouinZone
+	const int SIZE_K  = 20;
+	const int SIZE_KX = SIZE_K;
+	const int SIZE_KY = SIZE_K;
 	
-	BrillouinZone brillouinZone({
-		{k[0].x, k[0].y},{k[1].x, k[1].y}
-		},
-		SpacePartition::MeshType::Nodal
-	);
-	vector<vector<double>> mesh = brillouinZone.getMinorMesh(numMeshPoints);
- 
-	//Model and hopping
-	const int SIZE_KX = 2;
-	const int SIZE_KY = 2;
-	const double R_X  = 2*a + 2*a*0.5;
-	const double R_Y  = 2*a*sqrt(3)/2;
+	//Hamiltonian parameters
+	complex<double> t=1.0;
 
-	Model model;
+	//Setting the Model
+	Model model; 
 	model.setVerbose(true);
 
-	for (int kx=0; kx<SIZE_KX; kx++){
-		double KX = 2*kx*M_PI/SIZE_KX;
-		for (int ky=0; ky<SIZE_KY; ky++){
-			double KY = 2*ky*M_PI/SIZE_KY;
-			for (int x =0; x<SIZE_X; x++){
-				for (int y=0; y<SIZE_Y; y++){
-					for (int spin=0; spin<2; spin++){
-						model << HoppingAmplitude(-t, {kx, ky, x, y, SITE_1, spin}, {kx, ky, x, y, SITE_0, spin} ) + HC;
-						model << HoppingAmplitude(-t, {kx, ky, x, y, SITE_2, spin}, {kx, ky, x, y, SITE_1, spin} ) + HC;
-						model << HoppingAmplitude(-t, {kx, ky, x, y, SITE_3, spin}, {kx, ky, x, y, SITE_2, spin} ) + HC;
 
-						if(x+1 < SIZE_X){
-							model << HoppingAmplitude(-t, {kx, ky, (x+1)%SIZE_X, y, SITE_1, spin}, {kx, ky, x, y, SITE_0, spin} ) + HC;
-						} else {
-							model << HoppingAmplitude(-t*exp(i*KX*(SIZE_X*R_X)), {kx, ky, (x+1)%SIZE_X, y, SITE_1, spin}, {kx, ky, x, y, SITE_0, spin} ) + HC;
-						}
 
-						if(y+1 < SIZE_Y){
-							model << HoppingAmplitude(-t, {kx, ky, x, (y+1)%SIZE_Y, SITE_1, spin}, {kx, ky, x, y, SITE_0, spin} ) + HC;
-							model << HoppingAmplitude(-t, {kx, ky, x, (y+1)%SIZE_Y, SITE_3, spin}, {kx, ky, x, y, SITE_2, spin} ) + HC;
-						} else {
-							model << HoppingAmplitude(-t*exp(i*KY*(SIZE_X*R_Y)), {kx, ky, x, (y+1)%SIZE_Y, SITE_1, spin}, {kx, ky, x, y, SITE_0, spin} ) + HC;
-							model << HoppingAmplitude(-t*exp(i*KY*(SIZE_X*R_Y)), {kx, ky, x, (y+1)%SIZE_Y, SITE_3, spin}, {kx, ky, x, y, SITE_2, spin} ) + HC;
+	for (int kx =0; kx < SIZE_KX; kx++){
+ 		double KX = kx*2*M_PI/SIZE_KX;
+		for (int ky =0; ky < SIZE_KY; ky++){
+			double KY = ky*2*M_PI/SIZE_KY;
+			for(int layer=0; layer<2; layer++){
+				for(int x = 0; x < SIZE_X; x++){
+					for (int y = 0; y < SIZE_Y; y++){
+						for (int spin = 0; spin<2; spin++){
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site1, spin}, {kx, ky, layer, x,y,site0, spin}) + HC;
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site2, spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
+							model << HoppingAmplitude(-t, {kx, ky, layer, x, y, site3, spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
+							if(x+1 < SIZE_X){
+								model << HoppingAmplitude(-t, {kx, ky, layer, (x+1)%SIZE_X,y,site0,spin}, {kx, ky, layer, x,y,site3, spin}) + HC;
+							} else {
+								model << HoppingAmplitude(-t*exp(i*KX*(SIZE_X*R_X)), {kx, ky, layer, (x+1)%SIZE_X,y,site0,spin}, {kx, ky, layer, x,y,site3, spin}) + HC;
+							}
+							if(y+1 < SIZE_Y){
+								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y,site0,spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
+								model << HoppingAmplitude(-t, {kx, ky, layer, x,(y+1)%SIZE_Y,site3,spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
+							} else {
+								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y,site0,spin}, {kx, ky, layer, x,y,site1, spin}) + HC;
+								model << HoppingAmplitude(-t*exp(i*KY*(SIZE_Y*R_Y)), {kx, ky, layer, x,(y+1)%SIZE_Y,site3,spin}, {kx, ky, layer, x,y,site2, spin}) + HC;
+							}
 						}
 					}
 				}
 			}
-		}
+		} 
 	}
 
 	model.construct();
-	Streams::out << "1/n";
 
-	//Setup and run Solver: Diagonalizer
+	//Setup and run Solver
+	Timer::tick("Setup and run Solver");
 	Solver::BlockDiagonalizer solver;
 	solver.setModel(model);
 	solver.run();
-	Streams::out << "2/n";
+	Timer::tock();
 
-	//Create PropertyExtractor
+	//Property Extractor
 	PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
-	Streams::out << "3/n";
 
-	/*
-		ENERGY LEVEL AND DOS
-	*/
-
-	//Setup energy window
-	const double LOWER_BOUND = -5;
-	const double UPPER_BOUND = +5;
-	const int RESOLUTION = 1000;
-
+	//EnergyLevels - Eigenvalues
 	propertyExtractor.setEnergyWindow(LOWER_BOUND, UPPER_BOUND, RESOLUTION);
-	Streams::out << "4\n";
-
 	Property::EigenValues eigenValues = propertyExtractor.getEigenValues();
-	Streams::out << "5\n";
 
-	Plotter plotter;
-	plotter.plot(eigenValues);
-	plotter.save("figures/eigenValues.png");
-	Streams::out << "6\n";
-
-	//DOS
+	//DensityOfStates
 	Property::DOS dos = propertyExtractor.calculateDOS();
-	Streams::out << "7\n";
-
-	const double SMOOTHING_SIGMA = 0.1;
-	const unsigned int SMOOTHING_WINDOW = 51;
 	dos = Smooth::gaussian(dos, SMOOTHING_SIGMA, SMOOTHING_WINDOW);
-	Streams::out << "8\n";
 
-	plotter.clear();
-	plotter.plot(dos);
-	plotter.save("figures/DOS.png");
-	Streams::out << "9\n";
-
-	/*
-	Band Structure
-	*/
-
-	const int K_POINTS_PER_PATH = 100;
-	//High Symmetry Points
-	Vector3d G({     0,       0,   0});
-	Vector3d M({M_PI/a, -M_PI/a,   0});
-	Vector3d K({4*M_PI/(3*a),       0,   0});
-
-	vector<vector<Vector3d>> paths = {{G,M},{M,K},{K,G}};
-
-	Array<double> bandStructure({4, 3*K_POINTS_PER_PATH}, 0);
-	Range interpolator(0,1, K_POINTS_PER_PATH);
+	//BandStructure
+	const int K_POINTS_PER_PATH = SIZE_K/4;
+	Array<double> bandStructure({16*SIZE_X*SIZE_Y, 5*K_POINTS_PER_PATH}, 0);
+	for(unsigned int p = 0; p < 5; p++){
+		//Loop over a single path.
+		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
+			// G - X - M - Y - G
+			// G = 0.0, 0.0, 0.0 *(pi/a)
+			// X = 0.5, 0.0, 0.0 *(pi/a)
+			// M = 0.5, 0.5, 0.0 *(pi/a)
+			// Y = 0.0, 0.5, 0.0 *(pi/a)
+			
+			int kx;
+			int ky;
+			switch (p)
+			{
+			// G - X		
+			case 0:
+				kx = n;
+				ky = 0;
+				break;
+			// X - M
+			case 1:
+				kx = SIZE_K/4;
+				ky = n;
+				break;
+			
+			// M - Y
+			case 2: 
+				kx = SIZE_K/4-n;
+				ky = SIZE_K/4;
+				break;
+			// Y - G
+			case 3: 
+				kx = 0;
+				ky = (SIZE_K/4-n);
+				break;
+			// G - M
+			case 4: 
+				kx = n;
+				ky = n;
+				break;
+			default:
+				break;
+			}
+			//Extract the eigenvalues for the current k-point.
+		
+			for (unsigned int band=0; band <16*SIZE_X*SIZE_Y; band++){
+				bandStructure[{band, n+p*K_POINTS_PER_PATH}] = propertyExtractor.getEigenValue({kx, ky}, band);
+			}		
+		}
+	}
 
 	double min = bandStructure[{0,0}];
-	double max = bandStructure[{3,0}];
+	double max = bandStructure[{16*SIZE_X*SIZE_Y-1,0}];
 
-	for(unsigned int n=0; n<3*K_POINTS_PER_PATH; n++){
-		if(min > bandStructure[{0,n}])
-			min = bandStructure[{0,n}];
+	for(unsigned int n=0; n<5*K_POINTS_PER_PATH; n++){
+		if(min > bandStructure[{0, n}])
+			min = bandStructure[{0, n}];
+		if(max < bandStructure[{16*SIZE_X*SIZE_Y-1,n}])
+			max = bandStructure[{16*SIZE_X*SIZE_Y-1,n}];
+	}	
 
-		if(max < bandStructure[{3,n}])
-			max = bandStructure[{3,n}];
-	}
+	//Plotting
+	Plotter plotter;
+
+	//plotter.plot(eigenValues);
+	//plotter.save("figures/EigenValues.png");
+	//plotter.clear();
+
+	plotter.plot(dos);
+	plotter.save("figures/DOS.png");
+	plotter.clear();
 
 	plotter.clear();
 	plotter.setLabelX("k");
 	plotter.setLabelY("Energy");
 	plotter.setBoundsY(-1,1);
-	plotter.setBoundsX(150,250);
-	plotter.plot(bandStructure.getSlice({0, _a_}), {{"color", "black"}});
-	plotter.plot(bandStructure.getSlice({1, _a_}), {{"color", "black"}});
-	plotter.plot(bandStructure.getSlice({2, _a_}), {{"color", "black"}});
-	plotter.plot(bandStructure.getSlice({3, _a_}), {{"color", "black"}});
+	for (int band=0; band<16*SIZE_X*SIZE_Y; band++){
+		plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
+	}
+	for (unsigned int n=0; n<5; n++){
+		plotter.plot({((double) n)*K_POINTS_PER_PATH, ((double) n)*K_POINTS_PER_PATH},{min, max},{{"color", "black"},{"linestyle","-"}});
+	}
 	plotter.save("figures/bandStructure.png");
+	plotter.clear();
 
 	return 0;
-}
+};
+
+//Plot the band structure.
+
+/*
+	Vector3d r[3];
+	r[0] = Vector3d({a, 0, 0});
+	r[1] = Vector3d({-a/2, a*sqrt(3)/2, 0});
+	r[2] = Vector3d({0, 0, a});
+
+	Vector3d r_AB[3];
+	r_AB[0] = (r[0]+2*r[1])/3;
+	r_AB[1] = -r[1]+r_AB[0];
+	r_AB[2] = -r[0]-r[1]+r_AB[0];
+
+*/
+
+/* 
+	Vector3d k[3];
+	for(unsigned int n=0; n<3; n++){
+		k[n] = 2*M_PI*r[(n+1)%3]*r[(n+2)%3]/(
+			Vector3d::dotProduct(r[n], r[(n+1)%3]*r[(n+2)%3])
+		);
+	};
+
+	vector<unsigned int> numMeshPoints = {2*SIZE_X, 2*SIZE_Y};
+	BrillouinZone brillouinZone({{k[0].x, k[0].y},{k[1].x, k[1].y}}, SpacePartition::MeshType::Nodal);
+	vector<vector<double>> mesh = brillouinZone.getMinorMesh(numMeshPoints);
+*/
+
+/*  
+	//High Symmetry Points
+	Vector3d G({     0,       0,   0});
+	Vector3d M({M_PI/a, -M_PI/a,   0});
+	Vector3d K({4*M_PI/(3*a),       0,   0});
+    vector<vector<Vector3d>> paths = {{G,M},{M,K},{K,G}};
+
+	const int K_POINTS_PER_PATH = SIZE_K/2;
+	Array<double> bandStructure({4, 3*K_POINTS_PER_PATH}, 0);
+	Range interpolator(0, 1, K_POINTS_PER_PATH);
+
+	double min = bandStructure[{0,0}];
+	double max = bandStructure[{3,0}];
+
+	for(unsigned int n=0; n<3*K_POINTS_PER_PATH; n++){
+	 	if(min > bandStructure[{0,n}])
+	 		min = bandStructure[{0,n}];
+
+	 	if(max < bandStructure[{3,n}])
+	 		max = bandStructure[{3,n}];
+	 }
+*/

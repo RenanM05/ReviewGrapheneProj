@@ -23,11 +23,7 @@ const complex<double> i(0,1);
 
 class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
-	TCallBack(double a, const Model& model): model(model){
-		this->a=a;
-		double ap = a/sqrt(3);
-		R_X = 3*ap; // R_X = 3*a; 
-		R_Y = ap*sqrt(3);// R_Y = a*sqrt(3);		
+	TCallBack(double a, const Model& model): a(a), model(model){
 	}
 
 	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const{	
@@ -53,22 +49,26 @@ public:
 
 			// To connect plaquette
 			if (toY == fromY){
-				if ( (toX == SIZE_X[layer]-1 && fromX == 0) || (fromX == SIZE_X[layer]-1 && toX == 0) ){
-					// double KX = (2*M_PI/(double)SIZE_KX)*kx;
+				if (toX == SIZE_X[layer]-1 && fromX == 0){
+					double KX = ((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2)));
+					return -t*f(to, from)*exp(i*KX*(unitCellSize[0]));
+				} else if (fromX == SIZE_X[layer]-1 && toX == 0){
 					double KX = ((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2)));
 					return -t*f(to, from)*exp(i*KX*(unitCellSize[0]));
 				} else{
 					return -t*f(to, from);
 				}
+				
 			} else if(toX == fromX){
-				if ((toY == SIZE_Y[layer]-1 && fromY == 0)  || (fromY == SIZE_Y[layer]-1 && toY == 0) 
-				){
-					// double KY = (2*M_PI/(double)SIZE_KY)*ky;
+				if (toY == SIZE_Y[layer]-1 && fromY == 0){
 					double KY = ((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2)));
 					return -t*f(to, from)*exp(i*KY*(unitCellSize[1]));
-				} else{
+				} else if (fromY == SIZE_Y[layer]-1 && toY == 0){
+					double KY = ((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2)));
+					return -t*f(to, from)*exp(i*KY*(unitCellSize[1]));
+				} else {
 					return -t*f(to, from);
-				}
+				}				
 			} else{
 				Streams::out << "Should never happened" ;
 				exit(1);
@@ -148,8 +148,8 @@ int main(int argc, char **argv){
 	//RealSpace - LatticeInformation
 	double a=2.5;
 	const int numAtomsUnitCell = 4;
-	vector<int> SIZE_X = {5,4};
-	vector<int> SIZE_Y = {5,4};
+	vector<int> SIZE_X = {5,5};
+	vector<int> SIZE_Y = {5,5};
 	vector<double> unitCellSize = {SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a};
 	vector<Vector3d>unitCellBasis = {
 		{unitCellSize[0], 0, 0},
@@ -169,6 +169,7 @@ int main(int argc, char **argv){
 	complex<double> t=1.0;
 
 	//Setting the Model
+	Timer::tick("Setup the Model");
 	Model model; 
 	model.setVerbose(true);
 
@@ -199,20 +200,13 @@ int main(int argc, char **argv){
 	}
 
 	model.construct();
-
-	double ax[2]={
-		2*(a/sqrt(3)) + 2*(a/sqrt(3))*0.5,
-		2*(a/sqrt(3)) + 2*(a/sqrt(3))*0.5
-	};
+	Timer::tock();
 	
-	double ay[2]={
-		2*(a/sqrt(3))*sqrt(3)/2,
-		2*(a/sqrt(3))*sqrt(3)/2
-	};
-
+	Timer::tick("Setup geometry");
+	double ax[2]={3*(a/sqrt(3)), 3*(a/sqrt(3))};
+	double ay[2]={a,a};
 	double layerSeparation = 3.4;
 	Vector3d R_layer({0,0, layerSeparation});
-	
 	double ap = a/sqrt(3);
 	Vector3d offSetSite[2][4]={
 		{
@@ -254,6 +248,7 @@ int main(int argc, char **argv){
 			}
 		} 
 	}
+	Timer::tock();
 
 	ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 	ofstream fout1("systemInfo/geometry/coordinatesLayer1");
@@ -278,7 +273,7 @@ int main(int argc, char **argv){
 
 
 	//Setup and run Solver
-	Timer::tick("Setup and run Solver");
+	Timer::tick("Run the solver");
 	Solver::BlockDiagonalizer solver;
 	solver.setModel(model);
 	solver.run();
@@ -366,7 +361,7 @@ int main(int argc, char **argv){
 	plotter.setLabelX("k");
 	plotter.setLabelY("Energy");
 	plotter.setBoundsY(-1,1);
-	for (int band=0; band<8*SIZE_X[0]*SIZE_Y[0]; band++){
+	for (int band=0; band<((int)8)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
 		plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
 	}
 	for (unsigned int n=0; n<5; n++){

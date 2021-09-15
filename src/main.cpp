@@ -154,13 +154,13 @@ public:
 		return allKPoints;
 	}
 
-	vector<vector<vector<int>>> generateKPaths(unsigned int kPointsPerPath){
+	vector<vector<vector<int>>> generateKPaths(){
 		vector<vector<vector<int>>> paths;
 		for(unsigned int p = 0; p < 5; p++){
 			paths.push_back(vector<vector<int>>());
 			vector<vector<int>> &path = paths.back();
 			//Loop over a single path.
-			for(unsigned int n = 0; n < kPointsPerPath; n++){
+			for(unsigned int n = 0; n < (unsigned int)K_POINTS_PER_PATH; n++){
 				
 				int kx;
 				int ky;
@@ -173,19 +173,19 @@ public:
 					break;
 				//X-M
 				case 1:
-					kx = kPointsPerPath;
+					kx = K_POINTS_PER_PATH;
 					ky = n;
 					break;
 				
 				//M-Y
 				case 2: 
-					kx = kPointsPerPath-n;
-					ky = kPointsPerPath;
+					kx = K_POINTS_PER_PATH-n;
+					ky = K_POINTS_PER_PATH;
 					break;
 				//Y-G
 				case 3: 
 					kx = 0;
-					ky = (kPointsPerPath-n);
+					ky = (K_POINTS_PER_PATH-n);
 					break;
 				//G-M
 				case 4: 
@@ -329,34 +329,14 @@ public:
 		Timer::tock();
 	}
 
-	void extractProperties(){
-		Timer::tick("Extracting Properties");
-
-		//Setup energy window
-		const double LOWER_BOUND=-2;
-		const double UPPER_BOUND=+2;
-		const int RESOLUTION=1000;
-
-		//Gaussian smoothing parameters
-		const double SMOOTHING_SIGMA = 0.1;
-		const unsigned int SMOOTHING_WINDOW = 51;
-
+	void calculateBandStructure(){
+		//BandStructure
+		Timer::tick("Calculate BandStructure");
 		//Property Extractor
 		PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
-		Timer::tock();
 		
-		//EnergyLevels - Eigenvalues
-		propertyExtractor.setEnergyWindow(LOWER_BOUND, UPPER_BOUND, RESOLUTION);
-		Property::EigenValues eigenValues = propertyExtractor.getEigenValues();
-
-		//DensityOfStates
-		Property::DOS dos = propertyExtractor.calculateDOS();
-		dos = Smooth::gaussian(dos, SMOOTHING_SIGMA, SMOOTHING_WINDOW);
-
-		//BandStructure
-		const int K_POINTS_PER_PATH = SIZE_K/2;
 		Array<double> bandStructure({((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), ((unsigned int) 5)*K_POINTS_PER_PATH}, 0);
-		vector<vector<vector<int>>> paths=generateKPaths(K_POINTS_PER_PATH);
+		vector<vector<vector<int>>> paths=generateKPaths();
 
 		unsigned int bandPlotCounter=0;
 		for(auto path:paths){
@@ -380,15 +360,7 @@ public:
 
 		//Plotting
 		Plotter plotter;
-
-		//plotter.plot(eigenValues);
-		//plotter.save("figures/EigenValues.png");
-		//plotter.clear();
-
-		plotter.plot(dos);
-		plotter.save("figures/DOS.png");
-		plotter.clear();
-
+		
 		plotter.clear();
 		plotter.setLabelX("k");
 		plotter.setLabelY("Energy");
@@ -401,17 +373,40 @@ public:
 		}
 		plotter.save("figures/bandStructure.png");
 		plotter.clear();
+		
+		Timer::tock();
 	}
 
+	void calculateDOS(){
+		//DensityOfStates
+		Timer::tick("Calculate DOS");
+		//Property Extractor
+		PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
 
+		//Gaussian smoothing parameters
+		const double SMOOTHING_SIGMA = 0.1;
+		const unsigned int SMOOTHING_WINDOW = 51;
+		
+		//Setting the energyWindow
+		propertyExtractor.setEnergyWindow(LOWER_BOUND, UPPER_BOUND, RESOLUTION);
+		Property::DOS dos = propertyExtractor.calculateDOS();
+		dos = Smooth::gaussian(dos, SMOOTHING_SIGMA, SMOOTHING_WINDOW);
+
+		//Plotting
+		Plotter plotter;
+		plotter.plot(dos);
+		plotter.save("figures/DOS.png");
+		plotter.clear();
+		Timer::tock();
+	}
 
 	void run(){
 		setupModel();
 		setupGeometry();
 		printGeometry();
 		setupAndRunSolver();
-		extractProperties();
-
+		calculateBandStructure();
+		calculateDOS();
 	}
 
 private:
@@ -419,6 +414,7 @@ private:
 	const int SIZE_K = 12;
 	const int SIZE_KX = SIZE_K;
 	const int SIZE_KY = SIZE_K;
+	const int K_POINTS_PER_PATH = SIZE_K/2;
  	//Initializing the model
 	Model model;
 	Solver::BlockDiagonalizer solver;
@@ -432,6 +428,10 @@ private:
 	//Hamiltonian Parameters.
 	complex<double> t;
 	TCallBack tCallBack;
+	//Setup energy window
+	const double LOWER_BOUND=-2;
+	const double UPPER_BOUND=+2;
+	const int RESOLUTION=1000;
 };
 
 int main(int argc, char **argv){

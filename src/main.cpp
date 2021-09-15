@@ -138,7 +138,6 @@ public:
 		}
 	}
 
-
 	void setT(complex<double> t){this->t = t;}
 	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
 	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
@@ -170,10 +169,12 @@ public:
 	SIZE_KY(SIZE_K),
 	K_POINTS_PER_PATH(SIZE_K/2),
  	//RealSpace - LatticeInformation
-	a(2.5),
+	a(2.45),
 	numAtomsUnitCell(4),
 	SIZE_X({5,5}),
 	SIZE_Y({5,5}),
+	abStacking(true),
+	rectangularUnitCell(true),
 	unitCellSize({SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a}),
 	unitCellBasis({{unitCellSize[0], 0, 0},{0, unitCellSize[1], 0}}),
 	//Hamiltonian Parameters.
@@ -189,7 +190,7 @@ public:
 	{
 	}
 
-	
+//Reciprocal-Space - BrillouinZone
 	vector<vector<int>> generateAllPoints(){
 		vector<vector<int>> allKPoints;
 		for (int kx=0; kx<SIZE_KX; kx++){
@@ -270,6 +271,7 @@ public:
 		return kPoints;
 	}
 
+//Model
 	void setupModel(vector<vector<int>> &kPoints){	
 		//Setting the Model
 		Timer::tick("Setup the Model");
@@ -324,13 +326,21 @@ public:
 		}
 	}
 
+//RealSpace - LatticeInformation
 	void setupGeometry(){
+		if (rectangularUnitCell==true){
+			setupRectangularGeometry();
+		} else{
+			setupHexagonalGeometry();
+		};
+	}
+	void setupRectangularGeometry(){
 		Timer::tick("Setup geometry");
 		vector<vector<double>> deformation = {{1, 1},{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}};
 		double ax[2]={3*(a/sqrt(3)), 3*(a/sqrt(3))};
 		double ay[2]={a,a};
-		double layerSeparation = 3.4;
-		Vector3d R_layer({0,0, layerSeparation});
+		double carbonLayerSeparation = 2.7;
+		Vector3d R_layer({0,0, carbonLayerSeparation});
 		double ap = a/sqrt(3);
 		Vector3d offSetSite[2][4]={
 			{
@@ -346,6 +356,19 @@ public:
 				Vector3d({2*ap*0.5+ap, 0, 0})
 			}
 		};
+
+		if (abStacking==true){
+			Vector3d layerTranslation[2]={
+				Vector3d({ 0, 0, 0}),
+				Vector3d({ap, 0, 0})
+			};
+
+			for (int layer=0; layer<2; layer++){
+				for (int site=0; site<numAtomsUnitCell; site++){
+					offSetSite[layer][site] = offSetSite[layer][site] + layerTranslation[layer];
+				}
+			}
+		}
 
 		for (int layer=0; layer<2; layer++){
 			for (int site=0; site<numAtomsUnitCell; site++){
@@ -374,7 +397,14 @@ public:
 		}
 		Timer::tock();
 	}
-
+	void setupHexagonalGeometry(){
+		
+		TBTKExit(
+			"SetupHexagonalGeometry()",
+			"Still building the function",
+			"");
+		exit(1);
+	}
 	void printGeometry(){
 		Timer::tick("Print geometry");
 		ofstream fout0("systemInfo/geometry/coordinatesLayer0");
@@ -400,6 +430,7 @@ public:
 
 	}
 
+//Run the Model
 	void setupAndRunSolver(){
 		//Setup and run Solver
 		Timer::tick("Run the solver");
@@ -409,6 +440,7 @@ public:
 		Timer::tock();
 	}
 
+//BandStructure
 	void runBandStructureCalculation(){
 		vector<vector<int>> kPoints = kPathsToKpoints(generateKPaths());
 		numKpoints = kPoints.size();
@@ -466,6 +498,7 @@ public:
 		Timer::tock();
 	}
 
+//DensityOfState
 	void runDOSCalculation(){
 			vector<vector<int>> kPoints = generateAllPoints();
 			setupModel(kPoints);
@@ -506,6 +539,8 @@ private:
  	const int numAtomsUnitCell;
 	vector<int> SIZE_X;
 	vector<int> SIZE_Y;
+	bool abStacking;
+	bool rectangularUnitCell;
 	vector<double> unitCellSize;
 	vector<Vector3d> unitCellBasis;
 	//Hamiltonian Parameters.
@@ -531,7 +566,7 @@ int main(int argc, char **argv){
 	// Graphene grapheneDOS(12);
 	// grapheneDOS.runDOSCalculation();
 
-	Graphene grapheneBandStructure(12);
+	Graphene grapheneBandStructure(36);
 	grapheneBandStructure.runBandStructureCalculation();
 
 	return 0;

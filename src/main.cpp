@@ -134,14 +134,14 @@ public:
 	SIZE_KX(SIZE_K),
 	SIZE_KY(SIZE_K),
 	K_POINTS_PER_PATH(SIZE_K/2),
-	//RealSpace - LatticeInformation
+ 	//RealSpace - LatticeInformation
 	a(2.5),
 	numAtomsUnitCell(4),
 	SIZE_X({4,4}),
 	SIZE_Y({4,4}),
 	unitCellSize({SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a}),
 	unitCellBasis({{unitCellSize[0], 0, 0},{0, unitCellSize[1], 0}}),
-	//Hamiltonian parameters
+	//Hamiltonian Parameters.
 	t(1.0),
 	tCallBack(a, model),
 	//Setup energy window
@@ -154,6 +154,7 @@ public:
 	{
 	}
 
+	
 	vector<vector<int>> generateAllPoints(){
 		vector<vector<int>> allKPoints;
 		for (int kx=0; kx<SIZE_KX; kx++){
@@ -213,13 +214,28 @@ public:
 	}
 	vector<vector<int>> kPathsToKpoints(const vector<vector<vector<int>>> &kPaths){
 		vector<vector<int>> kPoints;
-		for (auto path:kPaths){
-			kPoints.insert(kPoints.end(), path.begin(), path.end());
+		for(auto path : kPaths){
+			kPoints.insert(kPoints.end(), path.begin(), path.end()); 
 		}
+
+		// remove repeated numbers
+		for(unsigned int n=0; n<kPoints.size(); n++){
+			int kx = kPoints[n][0];
+			int ky = kPoints[n][1];
+
+			for(unsigned int c=n+1; c<kPoints.size(); c++){
+
+				if(kx==kPoints[c][0] && ky==kPoints[c][1]){
+					kPoints.erase(kPoints.begin()+c, kPoints.begin()+c+1);
+					c--;
+				}
+			}
+		}
+
 		return kPoints;
 	}
 
-	void setupModel(const vector<vector<int>> &kPoints){	
+	void setupModel(vector<vector<int>> &kPoints){	
 		//Setting the Model
 		Timer::tick("Setup the Model");
 		model.setVerbose(true);
@@ -237,7 +253,7 @@ public:
 
 		model.construct();
 		Timer::tock();
-	}		
+	}	
 	void addHoppingAmplitude(const vector<vector<int>> &kPoints){
 		
 		for (vector<int> k:kPoints){
@@ -311,7 +327,7 @@ public:
 	}
 
 	void printGeometry(){
-		Timer::tick("Print geometry");
+		Timer::tick("Save geometry output file");
 		ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 		ofstream fout1("systemInfo/geometry/coordinatesLayer1");
 		Geometry& geometry = model.getGeometry();
@@ -346,6 +362,7 @@ public:
 
 	void runBandStructureCalculation(){
 		vector<vector<int>> kPoints = kPathsToKpoints(generateKPaths());
+		numKpoints = kPoints.size();
 		setupModel(kPoints);
 		setupGeometry();
 		printGeometry();
@@ -356,39 +373,40 @@ public:
 		//BandStructure
 		Timer::tick("Calculate BandStructure");
 		//Property Extractor
+	
 		PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
-		
-		Array<double> bandStructure({((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), ((unsigned int) 5)*K_POINTS_PER_PATH}, 0);
+	
+		unsigned int numBands=2*(model.getBasisSize()/numKpoints);
+		Array<double> bandStructure({numBands, ((unsigned int) 5)*K_POINTS_PER_PATH}, 0);
 		vector<vector<vector<int>>> paths=generateKPaths();
 
 		unsigned int bandPlotCounter=0;
 		for(auto path:paths){
 			for(auto k:path){
-				for (unsigned int band=0; band <((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
+				for (unsigned int band=0; band<numBands; band++){
 					bandStructure[{band, bandPlotCounter}] = propertyExtractor.getEigenValue({k[0], k[1]}, band);
 				}
 				bandPlotCounter++;
 			}
 		}
-		
+	
 		double min = bandStructure[{0,0}];
-		double max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,0}];
+		double max = bandStructure[{numBands-1,0}];
 
 		for(unsigned int n=0; n<((unsigned int) 5)*K_POINTS_PER_PATH; n++){
 			if(min > bandStructure[{0, n}])
 				min = bandStructure[{0, n}];
-			if(max < bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}])
-				max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}];
+			if(max < bandStructure[{numBands-1,n}])
+				max = bandStructure[{numBands-1,n}];
 		}	
 		
 		//Plotting
-		Plotter plotter;
-		
+		Plotter plotter;		
 		plotter.clear();
 		plotter.setLabelX("k");
 		plotter.setLabelY("Energy");
 		plotter.setBoundsY(-1,1);
-		for (int band=0; band<((int)8)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
+		for (int band=0; band<numBands; band++){
 			plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
 		}
 		for (unsigned int n=0; n<5; n++){
@@ -430,6 +448,7 @@ private:
 	const int SIZE_KX;
 	const int SIZE_KY;
 	const int K_POINTS_PER_PATH;
+	unsigned int numKpoints;
  	//Initializing the model
 	Model model;
 	Solver::BlockDiagonalizer solver;
@@ -460,11 +479,11 @@ int main(int argc, char **argv){
 	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
 
 	//Initialize Graphene
-	// Graphene grapheneDOS(10);
+	// Graphene grapheneDOS(12);
 	// grapheneDOS.runDOSCalculation();
 
 	Graphene grapheneBandStructure(12);
 	grapheneBandStructure.runBandStructureCalculation();
-	
+
 	return 0;
 };

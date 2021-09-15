@@ -21,6 +21,35 @@ using namespace Visualization::MatPlotLib;
 
 const complex<double> i(0,1);
 
+//Setup energy window
+const double LOWER_BOUND=-2;
+const double UPPER_BOUND=+2;
+const int RESOLUTION=1000;
+
+//Gaussian smoothing parameters
+const double SMOOTHING_SIGMA = 0.1;
+const unsigned int SMOOTHING_WINDOW = 51;
+
+//RealSpace - LatticeInformation
+double a=2.5;
+const int numAtomsUnitCell = 4;
+vector<int> SIZE_X = {4,4};
+vector<int> SIZE_Y = {4,4};
+vector<double> unitCellSize = {SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a};
+vector<Vector3d> unitCellBasis = {{unitCellSize[0], 0, 0},{0, unitCellSize[1], 0}};
+
+//Reciprocal-Space - BrillouinZone
+const int SIZE_K  = 12;
+const int SIZE_KX = SIZE_K;
+const int SIZE_KY = SIZE_K;
+
+//Hamiltonian parameters
+complex<double> t=1.0;
+
+//Initializing the model
+Model model; 
+Solver::BlockDiagonalizer solver;
+
 class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
 	TCallBack(double a, const Model& model): a(a), model(model){
@@ -173,52 +202,12 @@ vector<vector<vector<int>>> generateKPaths(unsigned int kPointsPerPath){
 	return paths;
 }
 
-int main(int argc, char **argv){
-
-	///Initialize TBTK
-	Initialize();
-
-	//Units
-	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
-
-	//Setup energy window
-	const double LOWER_BOUND=-2;
-	const double UPPER_BOUND=+2;
-	const int RESOLUTION=1000;
-
-	//Gaussian smoothing parameters
-	const double SMOOTHING_SIGMA = 0.1;
-	const unsigned int SMOOTHING_WINDOW = 51;
-
-	//RealSpace - LatticeInformation
-	double a=2.5;
-	const int numAtomsUnitCell = 4;
-	vector<int> SIZE_X = {5,5};
-	vector<int> SIZE_Y = {5,5};
-	vector<double> unitCellSize = {SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a};
-	vector<Vector3d>unitCellBasis = {
-		{unitCellSize[0], 0, 0},
-		{0, unitCellSize[1], 0}
-	};
-	vector<vector<double>> deformation = {
-		{1, 1},
-		{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}
-	};
-
-	//Reciprocal-Space - BrillouinZone
-	const int SIZE_K  = 12;
-	const int SIZE_KX = SIZE_K;
-	const int SIZE_KY = SIZE_K;
-	
-	//Hamiltonian parameters
-	complex<double> t=1.0;
-
+void setupModel(TCallBack &tCallBack){	
 	//Setting the Model
 	Timer::tick("Setup the Model");
-	Model model; 
 	model.setVerbose(true);
 
-	TCallBack tCallBack(a, model);
+	// TCallBack tCallBack(a, model);
 	tCallBack.setT(t);
 	tCallBack.setSIZE_X(SIZE_X);
 	tCallBack.setSIZE_Y(SIZE_Y);
@@ -246,8 +235,11 @@ int main(int argc, char **argv){
 
 	model.construct();
 	Timer::tock();
-	
+}
+
+void setupGeometry(){
 	Timer::tick("Setup geometry");
+	vector<vector<double>> deformation = {{1, 1},{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}};
 	double ax[2]={3*(a/sqrt(3)), 3*(a/sqrt(3))};
 	double ay[2]={a,a};
 	double layerSeparation = 3.4;
@@ -294,10 +286,13 @@ int main(int argc, char **argv){
 		} 
 	}
 	Timer::tock();
+}
 
+void printGeometry(){
+	Timer::tick("Save geometry output file");
 	ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 	ofstream fout1("systemInfo/geometry/coordinatesLayer1");
-
+	Geometry& geometry = model.getGeometry();
 	for(int layer=0; layer<2; layer++){
 		for(int x=0; x<SIZE_X[layer]; x++){
 			for (int y=0; y<SIZE_Y[layer]; y++){
@@ -312,21 +307,27 @@ int main(int argc, char **argv){
 		}
 	}
 	
-
 	fout0.close();
 	fout1.close();
+	Timer::tock();
 
+}
 
+void setupAndRunSolver(){
 	//Setup and run Solver
 	Timer::tick("Run the solver");
-	Solver::BlockDiagonalizer solver;
+	// Solver::BlockDiagonalizer solver;
 	solver.setModel(model);
 	solver.run();
 	Timer::tock();
+}
 
+void extractProperties(){
+	Timer::tick("Extracting Properties");
 	//Property Extractor
 	PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
-
+	Timer::tock();
+	
 	//EnergyLevels - Eigenvalues
 	propertyExtractor.setEnergyWindow(LOWER_BOUND, UPPER_BOUND, RESOLUTION);
 	Property::EigenValues eigenValues = propertyExtractor.getEigenValues();
@@ -383,7 +384,23 @@ int main(int argc, char **argv){
 	}
 	plotter.save("figures/bandStructure.png");
 	plotter.clear();
+}
 
+int main(int argc, char **argv){
+
+	///Initialize TBTK
+	Initialize();
+
+	//Units
+	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
+
+	TCallBack tCallBack(a, model);
+	setupModel(tCallBack);
+	setupGeometry();
+	printGeometry();
+	setupAndRunSolver();
+	extractProperties();
+	
 	return 0;
 };
 

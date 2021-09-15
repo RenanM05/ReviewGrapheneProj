@@ -54,7 +54,7 @@ public:
 					return -t*f(to, from)*exp(i*KX*(unitCellSize[0]));
 				} else if (fromX == SIZE_X[layer]-1 && toX == 0){
 					double KX = ((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2)));
-					return -t*f(to, from)*exp(i*KX*(unitCellSize[0]));
+					return -t*f(to, from)*exp(-i*KX*(unitCellSize[0]));
 				} else{
 					return -t*f(to, from);
 				}
@@ -65,7 +65,7 @@ public:
 					return -t*f(to, from)*exp(i*KY*(unitCellSize[1]));
 				} else if (fromY == SIZE_Y[layer]-1 && toY == 0){
 					double KY = ((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2)));
-					return -t*f(to, from)*exp(i*KY*(unitCellSize[1]));
+					return -t*f(to, from)*exp(-i*KY*(unitCellSize[1]));
 				} else {
 					return -t*f(to, from);
 				}				
@@ -126,7 +126,52 @@ private:
 	const Model& model;
 };
 
-
+vector<vector<vector<int>>> generateKPaths(unsigned int kPointsPerPath){
+	vector<vector<vector<int>>> paths;
+	for(unsigned int p = 0; p < 5; p++){
+		paths.push_back(vector<vector<int>>());
+		vector<vector<int>> &path = paths.back();
+		//Loop over a single path.
+		for(unsigned int n = 0; n < kPointsPerPath; n++){
+			
+			int kx;
+			int ky;
+			switch (p)
+			{
+			//G-X		
+			case 0:
+				kx = n;
+				ky = 0;
+				break;
+			//X-M
+			case 1:
+				kx = kPointsPerPath;
+				ky = n;
+				break;
+			
+			//M-Y
+			case 2: 
+				kx = kPointsPerPath-n;
+				ky = kPointsPerPath;
+				break;
+			//Y-G
+			case 3: 
+				kx = 0;
+				ky = (kPointsPerPath-n);
+				break;
+			//G-M
+			case 4: 
+				kx = n;
+				ky = n;
+				break;
+			default:
+				break;
+			}
+			path.push_back({kx, ky});
+		}
+	}
+	return paths;
+}
 
 int main(int argc, char **argv){
 
@@ -293,49 +338,18 @@ int main(int argc, char **argv){
 	//BandStructure
 	const int K_POINTS_PER_PATH = SIZE_K/2;
 	Array<double> bandStructure({((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0] + SIZE_X[1]*SIZE_Y[1]), 5*K_POINTS_PER_PATH}, 0);
-	for(unsigned int p = 0; p < 5; p++){
-		//Loop over a single path.
-		for(unsigned int n = 0; n < K_POINTS_PER_PATH; n++){
-			
-			int kx;
-			int ky;
-			switch (p)
-			{
-			//G-X		
-			case 0:
-				kx = n;
-				ky = 0;
-				break;
-			//X-M
-			case 1:
-				kx = SIZE_K/2;
-				ky = n;
-				break;
-			
-			//M-Y
-			case 2: 
-				kx = SIZE_K/2-n;
-				ky = SIZE_K/2;
-				break;
-			//Y-G
-			case 3: 
-				kx = 0;
-				ky = (SIZE_K/2-n);
-				break;
-			//G-M
-			case 4: 
-				kx = n;
-				ky = n;
-				break;
-			default:
-				break;
-			}
+	vector<vector<vector<int>>> paths=generateKPaths(K_POINTS_PER_PATH);
+
+	unsigned int bandPlotCounter=0;
+	for(auto path:paths){
+		for(auto k:path){
 			for (unsigned int band=0; band <((unsigned int) 8)*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1]); band++){
-				bandStructure[{band, n+p*K_POINTS_PER_PATH}] = propertyExtractor.getEigenValue({kx, ky}, band);
+				bandStructure[{band, bandPlotCounter}] = propertyExtractor.getEigenValue({k[0], k[1]}, band);
 			}
+			bandPlotCounter++;
 		}
 	}
-
+	
 	double min = bandStructure[{0,0}];
 	double max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,0}];
 

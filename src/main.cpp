@@ -142,6 +142,18 @@ public:
 	{
 	}
 
+	vector<vector<int>> generateAllPoints(){
+		vector<vector<int>> allKPoints;
+		for (int kx=0; kx<SIZE_KX; kx++){
+			for (int ky=0; ky<SIZE_KY; ky++){
+				allKPoints.push_back(vector<int>());
+				allKPoints.back().push_back(kx);
+				allKPoints.back().push_back(ky);
+			}
+		}
+		return allKPoints;
+	}
+
 	vector<vector<vector<int>>> generateKPaths(unsigned int kPointsPerPath){
 		vector<vector<vector<int>>> paths;
 		for(unsigned int p = 0; p < 5; p++){
@@ -203,25 +215,33 @@ public:
 		tCallBack.setUnitCellSize(unitCellSize);
 		tCallBack.setUnitCellBasis(unitCellBasis);
 
-		for (int kx =0; kx < SIZE_KX; kx++){
-			for (int ky =0; ky < SIZE_KY; ky++){
-				for(int layer=0; layer<2; layer++){
-					for(int x = 0; x < SIZE_X[layer]; x++){
-						for (int y = 0; y < SIZE_Y[layer]; y++){
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 1}, {kx, ky, layer, x,y,0}) + HC;
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 2}, {kx, ky, layer, x,y,1}) + HC;
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 3}, {kx, ky, layer, x,y,2}) + HC;
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, (x+1)%SIZE_X[layer],y,0}, {kx, ky, layer, x,y,3}) + HC;
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],0}, {kx, ky, layer, x,y,1}) + HC;
-							model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],3}, {kx, ky, layer, x,y,2}) + HC;						
-						}
-					}
-				}
-			} 
-		}
+		vector<vector<int>> kPoints=generateAllPoints();
+		setupModel(kPoints);
 
 		model.construct();
 		Timer::tock();
+	}
+	
+	//overloaded function
+	void setupModel(const vector<vector<int>> &kPoints){
+		
+		for (vector<int> k:kPoints){
+			int kx=k[0];
+			int ky=k[1];
+
+			for(int layer=0; layer<2; layer++){
+				for(int x = 0; x < SIZE_X[layer]; x++){
+					for (int y = 0; y < SIZE_Y[layer]; y++){
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 1}, {kx, ky, layer, x,y,0}) + HC;
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 2}, {kx, ky, layer, x,y,1}) + HC;
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 3}, {kx, ky, layer, x,y,2}) + HC;
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, (x+1)%SIZE_X[layer],y,0}, {kx, ky, layer, x,y,3}) + HC;
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],0}, {kx, ky, layer, x,y,1}) + HC;
+						model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],3}, {kx, ky, layer, x,y,2}) + HC;						
+					}
+				}
+			}
+		}
 	}
 
 	void setupGeometry(){
@@ -383,6 +403,17 @@ public:
 		plotter.clear();
 	}
 
+
+
+	void run(){
+		setupModel();
+		setupGeometry();
+		printGeometry();
+		setupAndRunSolver();
+		extractProperties();
+
+	}
+
 private:
 	//Reciprocal-Space - BrillouinZone
 	const int SIZE_K = 12;
@@ -391,7 +422,6 @@ private:
  	//Initializing the model
 	Model model;
 	Solver::BlockDiagonalizer solver;
-	
  	//RealSpace - LatticeInformation
 	double a; 
  	const int numAtomsUnitCell;
@@ -413,11 +443,7 @@ int main(int argc, char **argv){
 
 	//Initialize Graphene
 	Graphene graphene;
-	graphene.setupModel();
-	graphene.setupGeometry();
-	graphene.printGeometry();
-	graphene.setupAndRunSolver();
-	graphene.extractProperties();
+	graphene.run();
 	
 	return 0;
 };

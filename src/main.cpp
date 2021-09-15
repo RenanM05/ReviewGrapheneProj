@@ -142,6 +142,7 @@ public:
 	{
 	}
 
+	
 	vector<vector<int>> generateAllPoints(){
 		vector<vector<int>> allKPoints;
 		for (int kx=0; kx<SIZE_KX; kx++){
@@ -153,7 +154,6 @@ public:
 		}
 		return allKPoints;
 	}
-
 	vector<vector<vector<int>>> generateKPaths(){
 		vector<vector<vector<int>>> paths;
 		for(unsigned int p = 0; p < 5; p++){
@@ -200,6 +200,13 @@ public:
 		}
 		return paths;
 	}
+	vector<vector<int>> kPathsToKpoints(const vector<vector<vector<int>>> &kPaths){
+		vector<vector<int>> kPoints;
+		for (auto path:kPaths){
+			kPoints.insert(kPoints.end(), path.begin(), path.end());
+		}
+		return kPoints;
+	}
 
 	void setupModel(){	
 		//Setting the Model
@@ -220,8 +227,7 @@ public:
 
 		model.construct();
 		Timer::tock();
-	}
-	
+	}	
 	//overloaded function
 	void setupModel(const vector<vector<int>> &kPoints){
 		
@@ -329,6 +335,15 @@ public:
 		Timer::tock();
 	}
 
+	void runBandStructureCalculation(){
+		vector<vector<int>> kPoints = kPathsToKpoints(generateKPaths());
+		setupModel(kPoints);
+		setupGeometry();
+		printGeometry();
+		setupAndRunSolver();
+		calculateBandStructure();
+	}
+
 	void calculateBandStructure(){
 		//BandStructure
 		Timer::tick("Calculate BandStructure");
@@ -357,7 +372,7 @@ public:
 			if(max < bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}])
 				max = bandStructure[{(unsigned int)8*(SIZE_X[0]*SIZE_Y[0]+SIZE_X[1]*SIZE_Y[1])-1,n}];
 		}	
-
+		
 		//Plotting
 		Plotter plotter;
 		
@@ -373,30 +388,33 @@ public:
 		}
 		plotter.save("figures/bandStructure.png");
 		plotter.clear();
-		
 		Timer::tock();
 	}
 
+
+	void runDOSCalculation(){
+			vector<vector<int>> kPoints = generateAllPoints();
+			setupModel(kPoints);
+			setupGeometry();
+			printGeometry();
+			setupAndRunSolver();
+			calculateDOS();
+		}
 	void calculateDOS(){
-		//DensityOfStates
 		Timer::tick("Calculate DOS");
+		
 		//Property Extractor
 		PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
-
-		//Gaussian smoothing parameters
-		const double SMOOTHING_SIGMA = 0.1;
-		const unsigned int SMOOTHING_WINDOW = 51;
-		
 		//Setting the energyWindow
 		propertyExtractor.setEnergyWindow(LOWER_BOUND, UPPER_BOUND, RESOLUTION);
 		Property::DOS dos = propertyExtractor.calculateDOS();
 		dos = Smooth::gaussian(dos, SMOOTHING_SIGMA, SMOOTHING_WINDOW);
-
 		//Plotting
 		Plotter plotter;
 		plotter.plot(dos);
 		plotter.save("figures/DOS.png");
 		plotter.clear();
+		Timer::tock();
 		Timer::tock();
 	}
 
@@ -432,6 +450,9 @@ private:
 	const double LOWER_BOUND=-2;
 	const double UPPER_BOUND=+2;
 	const int RESOLUTION=1000;
+	//Gaussian smoothing parameters
+	const double SMOOTHING_SIGMA = 0.1;
+	const unsigned int SMOOTHING_WINDOW = 51;
 };
 
 int main(int argc, char **argv){

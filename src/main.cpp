@@ -70,40 +70,75 @@ public:
 					return -t*f(to, from);
 				}				
 			} else{
-				Streams::out << "Should never happened" ;
-				exit(1);
+				TBTKExit(
+					"TCallBack::getHoppingAmplitude()",
+					"Should never happened",
+					""
+				);
 			} 
 		}
 		else{
-			Streams::out << "Should never happened" ;
-			exit(1);
+			const Geometry& geometry = model.getGeometry();
+			Vector3d toCoordinate = geometry.getCoordinate(to);
+			Vector3d fromCoordinate = geometry.getCoordinate(from);
+			Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
+
+			Vector3d k({
+				((M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX/2))),
+				((M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY/2))),
+				0
+			});
+			return -t*f(to, from)*exp(i*Vector3d::dotProduct(k, distanceMinimizingTranslation));
+			TBTKExit(
+				"TCallBack::getHoppingAmplitude()",
+				"Should never happened",
+				""
+			);
 		} 
 	}
 
-	complex<double> f(const Index& to, const Index& from) const{
-		
-		Vector3d toCoordinate=model.getGeometry().getCoordinate(to);
-		Vector3d fromCoordinate=model.getGeometry().getCoordinate(from);
-		
-		double smallestNorm = std::numeric_limits<double>::infinity();
+	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const {
+		double smallestNorm = std::numeric_limits<double>::infinity(); 		
+		Vector3d requiredTranslation({0,0,0});
 		for (int x=-1; x<2; x++){
-			for (int y=-1; y<2; y++){
-				Vector3d translatedFromCoordinate = fromCoordinate + x*unitCellBasis[0]+ y*unitCellBasis[1];
+			for (int y=-1; y<2; y++){			
+				Vector3d translation = x*unitCellBasis[0]+ y*unitCellBasis[1];
+				Vector3d translatedFromCoordinate = fromCoordinate + translation;
 				Vector3d difference = toCoordinate - translatedFromCoordinate;
 
 				double norm = difference.norm();
-				if(smallestNorm > norm)
-					smallestNorm = norm;
-			}
-		}
 	
-		double beta = 3;
-		//When smallestNorm = 1.42, then exp->0. 
-		//Therefore, the hopping between two carbons is -t
-		return exp(-beta*(smallestNorm/(a/sqrt(3)) - 1));
+				if(smallestNorm > norm){
+					smallestNorm = norm;
+
+					requiredTranslation = translation;
+				}
+			};
+		};
+
+		return requiredTranslation;
 	}
 
-	// set the internal t to a newT
+	// This function is responsable to handle with one pair of indices
+	complex<double> f(const Index &to, const Index &from) const{
+		Vector3d toCoordinate=model.getGeometry().getCoordinate(to);
+		Vector3d fromCoordinate=model.getGeometry().getCoordinate(from);
+
+		Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
+		Vector3d difference = fromCoordinate + distanceMinimizingTranslation - toCoordinate;
+		double smallestDistance = difference.norm();
+
+		double beta=3; 		
+
+		if (to[2] == from[2]){
+			return exp(-beta*(smallestDistance/(a/sqrt(3)) - 1));
+		}
+		else{
+			return Vector3d::dotProduct(difference.unit(), {0, 0, 1})*exp(-beta*(smallestDistance/(a/sqrt(3)) - 1));
+		}
+	}
+
+
 	void setT(complex<double> t){this->t = t;}
 	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
 	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
@@ -137,8 +172,8 @@ public:
  	//RealSpace - LatticeInformation
 	a(2.5),
 	numAtomsUnitCell(4),
-	SIZE_X({4,4}),
-	SIZE_Y({4,4}),
+	SIZE_X({5,5}),
+	SIZE_Y({5,5}),
 	unitCellSize({SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a}),
 	unitCellBasis({{unitCellSize[0], 0, 0},{0, unitCellSize[1], 0}}),
 	//Hamiltonian Parameters.
@@ -272,6 +307,20 @@ public:
 					}
 				}
 			}
+
+			for(int toX = 0; toX < SIZE_X[0]; toX++){
+				for (int toY = 0; toY < SIZE_Y[0]; toY++){					
+					for (int toSite=0; toSite<4; toSite++){
+						for(int fromX = 0; fromX < SIZE_X[1]; fromX++){
+							for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){					
+								for (int fromSite=0; fromSite<4; fromSite++){
+										model << HoppingAmplitude(tCallBack, {kx, ky, 0, toX, toY, toSite}, {kx, ky, 1, fromX, fromY,fromSite});
+								}
+							}
+						}
+					}
+				}
+			} 
 		}
 	}
 
@@ -327,7 +376,7 @@ public:
 	}
 
 	void printGeometry(){
-		Timer::tick("Save geometry output file");
+		Timer::tick("Print geometry");
 		ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 		ofstream fout1("systemInfo/geometry/coordinatesLayer1");
 		Geometry& geometry = model.getGeometry();
@@ -376,7 +425,7 @@ public:
 	
 		PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
 	
-		unsigned int numBands=2*(model.getBasisSize()/numKpoints);
+		unsigned int numBands=1*(model.getBasisSize()/numKpoints);
 		Array<double> bandStructure({numBands, ((unsigned int) 5)*K_POINTS_PER_PATH}, 0);
 		vector<vector<vector<int>>> paths=generateKPaths();
 
@@ -406,7 +455,7 @@ public:
 		plotter.setLabelX("k");
 		plotter.setLabelY("Energy");
 		plotter.setBoundsY(-1,1);
-		for (int band=0; band<numBands; band++){
+		for (int band=0; band<(int)numBands; band++){
 			plotter.plot(bandStructure.getSlice({band, _a_}), {{"color", "black"}, {"linestyle", "-"}});
 		}
 		for (unsigned int n=0; n<5; n++){

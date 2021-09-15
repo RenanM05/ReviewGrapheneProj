@@ -128,7 +128,12 @@ private:
 
 class Graphene{
 public:
-	Graphene():
+	Graphene(unsigned int SIZE_K):
+	//Reciprocal-Space - BrillouinZone
+	SIZE_K(SIZE_K),
+	SIZE_KX(SIZE_K),
+	SIZE_KY(SIZE_K),
+	K_POINTS_PER_PATH(SIZE_K/2),
 	//RealSpace - LatticeInformation
 	a(2.5),
 	numAtomsUnitCell(4),
@@ -138,11 +143,17 @@ public:
 	unitCellBasis({{unitCellSize[0], 0, 0},{0, unitCellSize[1], 0}}),
 	//Hamiltonian parameters
 	t(1.0),
-	tCallBack(a, model)
+	tCallBack(a, model),
+	//Setup energy window
+	LOWER_BOUND(-2),
+	UPPER_BOUND(+2),
+	RESOLUTION(1000),
+	//Gaussian smoothing parameters
+	SMOOTHING_SIGMA(0.1),
+	SMOOTHING_WINDOW(51)
 	{
 	}
 
-	
 	vector<vector<int>> generateAllPoints(){
 		vector<vector<int>> allKPoints;
 		for (int kx=0; kx<SIZE_KX; kx++){
@@ -208,7 +219,7 @@ public:
 		return kPoints;
 	}
 
-	void setupModel(){	
+	void setupModel(const vector<vector<int>> &kPoints){	
 		//Setting the Model
 		Timer::tick("Setup the Model");
 		model.setVerbose(true);
@@ -222,14 +233,12 @@ public:
 		tCallBack.setUnitCellSize(unitCellSize);
 		tCallBack.setUnitCellBasis(unitCellBasis);
 
-		vector<vector<int>> kPoints=generateAllPoints();
-		setupModel(kPoints);
+		addHoppingAmplitude(kPoints);
 
 		model.construct();
 		Timer::tock();
-	}	
-	//overloaded function
-	void setupModel(const vector<vector<int>> &kPoints){
+	}		
+	void addHoppingAmplitude(const vector<vector<int>> &kPoints){
 		
 		for (vector<int> k:kPoints){
 			int kx=k[0];
@@ -302,7 +311,7 @@ public:
 	}
 
 	void printGeometry(){
-		Timer::tick("Save geometry output file");
+		Timer::tick("Print geometry");
 		ofstream fout0("systemInfo/geometry/coordinatesLayer0");
 		ofstream fout1("systemInfo/geometry/coordinatesLayer1");
 		Geometry& geometry = model.getGeometry();
@@ -343,7 +352,6 @@ public:
 		setupAndRunSolver();
 		calculateBandStructure();
 	}
-
 	void calculateBandStructure(){
 		//BandStructure
 		Timer::tick("Calculate BandStructure");
@@ -391,7 +399,6 @@ public:
 		Timer::tock();
 	}
 
-
 	void runDOSCalculation(){
 			vector<vector<int>> kPoints = generateAllPoints();
 			setupModel(kPoints);
@@ -415,24 +422,14 @@ public:
 		plotter.save("figures/DOS.png");
 		plotter.clear();
 		Timer::tock();
-		Timer::tock();
-	}
-
-	void run(){
-		setupModel();
-		setupGeometry();
-		printGeometry();
-		setupAndRunSolver();
-		calculateBandStructure();
-		calculateDOS();
 	}
 
 private:
 	//Reciprocal-Space - BrillouinZone
-	const int SIZE_K = 12;
-	const int SIZE_KX = SIZE_K;
-	const int SIZE_KY = SIZE_K;
-	const int K_POINTS_PER_PATH = SIZE_K/2;
+	const int SIZE_K;
+	const int SIZE_KX;
+	const int SIZE_KY;
+	const int K_POINTS_PER_PATH;
  	//Initializing the model
 	Model model;
 	Solver::BlockDiagonalizer solver;
@@ -447,12 +444,12 @@ private:
 	complex<double> t;
 	TCallBack tCallBack;
 	//Setup energy window
-	const double LOWER_BOUND=-2;
-	const double UPPER_BOUND=+2;
-	const int RESOLUTION=1000;
+	const double LOWER_BOUND;
+	const double UPPER_BOUND;
+	const int RESOLUTION;
 	//Gaussian smoothing parameters
-	const double SMOOTHING_SIGMA = 0.1;
-	const unsigned int SMOOTHING_WINDOW = 51;
+	const double SMOOTHING_SIGMA;
+	const unsigned int SMOOTHING_WINDOW;
 };
 
 int main(int argc, char **argv){
@@ -463,38 +460,11 @@ int main(int argc, char **argv){
 	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
 
 	//Initialize Graphene
-	Graphene graphene;
-	graphene.run();
+	// Graphene grapheneDOS(10);
+	// grapheneDOS.runDOSCalculation();
+
+	Graphene grapheneBandStructure(12);
+	grapheneBandStructure.runBandStructureCalculation();
 	
 	return 0;
 };
-
-//Plot the band structure.
-
-/*
-	Vector3d r[3];
-	r[0] = Vector3d({a, 0, 0});
-	r[1] = Vector3d({-a/2, a*sqrt(3)/2, 0});
-	r[2] = Vector3d({0, 0, a});
-
-
-	Vector3d k[3];
-	for(unsigned int n=0; n<3; n++){
-		k[n] = 2*M_PI*r[(n+1)%3]*r[(n+2)%3]/(
-			Vector3d::dotProduct(r[n], r[(n+1)%3]*r[(n+2)%3])
-		);
-	};
-
-	vector<unsigned int> numMeshPoints = {2*SIZE_X, 2*SIZE_Y};
-	BrillouinZone brillouinZone({{k[0].x, k[0].y},{k[1].x, k[1].y}}, SpacePartition::MeshType::Nodal);
-	vector<vector<double>> mesh = brillouinZone.getMinorMesh(numMeshPoints);
-
-	//High Symmetry Points
-	Vector3d G({     0,       0,   0});
-	Vector3d M({M_PI/a, -M_PI/a,   0});
-	Vector3d K({4*M_PI/(3*a),       0,   0});
-    vector<vector<Vector3d>> paths = {{G,M},{M,K},{K,G}};
-
-	Array<double> bandStructure({num_of_states, number_of_paths*K_POINTS_PER_PATH}, 0);
-	Range interpolator(0, 1, K_POINTS_PER_PATH);
-*/

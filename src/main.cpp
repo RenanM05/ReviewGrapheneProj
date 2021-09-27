@@ -22,7 +22,6 @@ using namespace std;
 using namespace TBTK;
 using namespace Visualization::MatPlotLib;
 
-const complex<double> i(0,1);
 
 int main(int argc, char **argv){
 	///Initialize TBTK
@@ -32,8 +31,8 @@ int main(int argc, char **argv){
 	UnitHandler::setScales({"1 rad", "1 C","1 pcs","1 eV","1 Ao","1 K", "1 s"});
 
 	//Initialize Graphene
-	Graphene grapheneDOS(12);
-	grapheneDOS.runDOSCalculation();
+	// Graphene grapheneDOS(12);
+	// grapheneDOS.runDOSCalculation();
 
 	Graphene grapheneBandStructure(36);
 	grapheneBandStructure.runBandStructureCalculation();

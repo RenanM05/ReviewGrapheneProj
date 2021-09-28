@@ -18,7 +18,7 @@
 #include <fstream>
 #include <limits>
 
-#include "TCallBack.h"
+#include<TCallBack.h>
 
 using namespace std;
 using namespace TBTK;
@@ -27,7 +27,7 @@ using namespace Visualization::MatPlotLib;
 class Graphene{
 public:
 	Graphene(unsigned int SIZE_K);
-    
+
     void runBandStructureCalculation();
     void runDOSCalculation();
 
@@ -47,6 +47,7 @@ private:
 	vector<int> SIZE_X;
 	vector<int> SIZE_Y;
 	bool rectangularUnitCell;
+	bool addGrapheneBottomLayer;
 	bool abStacking;
 	bool addFluorine;
 	vector<double> unitCellSize;
@@ -62,7 +63,7 @@ private:
 	const double SMOOTHING_SIGMA;
 	const unsigned int SMOOTHING_WINDOW;
 
-    vector<vector<int>> generateAllKPoints();
+	vector<vector<int>> generateAllKPoints();
 	vector<vector<vector<int>>> generateKPaths();
 	vector<vector<int>> kPathsToKpoints(const vector<vector<vector<int>>> &kPaths);
 

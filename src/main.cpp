@@ -22,7 +22,6 @@ using namespace std;
 using namespace TBTK;
 using namespace Visualization::MatPlotLib;
 
-
 int main(int argc, char **argv){
 	///Initialize TBTK
 	Initialize();

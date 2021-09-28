@@ -22,20 +22,24 @@ using namespace std;
 using namespace TBTK;
 using namespace Visualization::MatPlotLib;
 
+const complex<double> i(0,1);
+
+
 class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
 	enum class RadialAndAngularMode{Full, NearestNeighbor};
+
 	TCallBack(double a, const Model& model);
-    
-    complex<double> getHoppingAmplitude(const Index &to, const Index &from) const;
-    
-    void setT(double t);
-	void setSIZE_KX(int SIZE_KX);
-	void setSIZE_KY(int SIZE_KY);
-	void setSIZE_X(vector<int> SIZE_X);
-	void setSIZE_Y(vector<int> SIZE_Y);
-	void setUnitCellSize(vector<double> unitCellSize);
-	void setUnitCellBasis(vector<Vector3d> unitCellBasis);
+
+	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const;
+
+	void setT(double t){this->t = t;}
+	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
+	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
+	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
+	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
+	void setUnitCellSize(vector<double> unitCellSize){this-> unitCellSize = unitCellSize;}
+	void setUnitCellBasis(vector<Vector3d> unitCellBasis){this-> unitCellBasis = unitCellBasis;}
 
 private:
 	double t;
@@ -49,6 +53,7 @@ private:
 	double R_Y;
 	double a;
 	const Model& model;
+
 	RadialAndAngularMode radialAndAngularMode;
 
 	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const;
@@ -57,7 +62,6 @@ private:
 	complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
 	complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
 	complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;
-
 };
 
-#endif
+#endif 

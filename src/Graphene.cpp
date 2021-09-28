@@ -31,9 +31,10 @@ K_POINTS_PER_PATH(SIZE_K/2),
 //RealSpace - LatticeInformation
 a(2.45),
 numAtomsUnitCell(4),
-SIZE_X({5,5,5}),
-SIZE_Y({5,5,5}),
+SIZE_X({5,5}),
+SIZE_Y({5,5}),
 rectangularUnitCell(true),
+addGrapheneBottomLayer(false),
 abStacking(true),
 addFluorine(false),
 unitCellSize({SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a}),
@@ -70,7 +71,7 @@ vector<vector<vector<int>>> Graphene::generateKPaths(){
         vector<vector<int>> &path = paths.back();
         //Loop over a single path.
         for(unsigned int n = 0; n < (unsigned int)K_POINTS_PER_PATH; n++){
-            
+
             int kx;
             int ky;
             switch (p)
@@ -85,7 +86,7 @@ vector<vector<vector<int>>> Graphene::generateKPaths(){
                 kx = K_POINTS_PER_PATH;
                 ky = n;
                 break;
-            
+
             //M-Y
             case 2: 
                 kx = K_POINTS_PER_PATH-n;
@@ -153,12 +154,13 @@ void Graphene::setupModel(vector<vector<int>> &kPoints){
     Timer::tock();
 }	
 void Graphene::addHoppingAmplitude(const vector<vector<int>> &kPoints){
-    
+
     for (vector<int> k:kPoints){
         int kx=k[0];
         int ky=k[1];
 
-        for(int layer=0; layer<2; layer++){
+        int startPointLayer = addGrapheneBottomLayer ? 0:1;
+        for(int layer=startPointLayer; layer<2; layer++){
             for(int x = 0; x < SIZE_X[layer]; x++){
                 for (int y = 0; y < SIZE_Y[layer]; y++){
                     model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 1}, {kx, ky, layer, x,y,0}) + HC;
@@ -171,41 +173,23 @@ void Graphene::addHoppingAmplitude(const vector<vector<int>> &kPoints){
             }
         }
 
-        //Is to/from x,y inverted regarding SIZE_X,Y[bottom] and SIZE_X,Y[top]
-        //Standard: 0,1 . I settled: 1,0, in both-SIZE and MODEL
-        for(int toX = 0; toX < SIZE_X[1]; toX++){
-            for (int toY = 0; toY < SIZE_Y[1]; toY++){					
-                for (int toSite=0; toSite<4; toSite++){
-                    for(int fromX = 0; fromX < SIZE_X[0]; fromX++){
-                        for (int fromY = 0; fromY < SIZE_Y[0]; fromY++){					
-                            for (int fromSite=0; fromSite<4; fromSite++){
-                                    model << HoppingAmplitude(tCallBack, {kx, ky, 1, toX, toY, toSite}, {kx, ky, 0, fromX, fromY,fromSite})+HC;
-                            }
-                        }
-                    }
-                }
-            }
-        } 
-
-        if(addFluorine){//Fluorine interlayer connection
-            for(int toX = 0; toX < SIZE_X[1]; toX++){
-                for (int toY = 0; toY < SIZE_Y[1]; toY++){					
-                    for (int toSite=0; toSite<2; toSite++){
-                        for(int fromX = 0; fromX < SIZE_X[2]; fromX++){
-                            for (int fromY = 0; fromY < SIZE_Y[2]; fromY++){					
-                                for (int fromSite=0; fromSite<2; fromSite++){
-                                    for (int spin = 0; spin<2; spin++){
-                                        model << HoppingAmplitude(tCallBack, {kx, ky, 1, toX, toY, toSite, spin}, {kx, ky, 2, fromX,fromY,fromSite, spin}) + HC;
-                                    }
+        if(addGrapheneBottomLayer){
+            for(int toX = 0; toX < SIZE_X[0]; toX++){
+                for (int toY = 0; toY < SIZE_Y[0]; toY++){					
+                    for (int toSite=0; toSite<4; toSite++){
+                        for(int fromX = 0; fromX < SIZE_X[1]; fromX++){
+                            for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){					
+                                for (int fromSite=0; fromSite<4; fromSite++){
+                                        model << HoppingAmplitude(tCallBack, {kx, ky, 0, toX, toY, toSite}, {kx, ky, 1, fromX, fromY,fromSite});
                                 }
                             }
                         }
                     }
                 }
-            } 
-	    }
+            }             
+        }
     }
-}
+}   
 
 //RealSpace - LatticeInformation
 void Graphene::setupGeometry(){
@@ -218,33 +202,23 @@ void Graphene::setupGeometry(){
 void Graphene::setupRectangularGeometry(){
     Timer::tick("Setup geometry");
     vector<vector<double>> deformation = {{1, 1},{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}};
-    double ax[3]={3*(a/sqrt(3)), 3*(a/sqrt(3)), 3*(a/sqrt(3))};
-    double ay[3]={a,a,a};
+    double ax[2]={3*(a/sqrt(3)), 3*(a/sqrt(3))};
+    double ay[2]={a,a};
     double carbonLayerSeparation = 3.0;
-    double fluorineGrapheneSeparation = 1.4;
-    Vector3d R_layer[3]={
-        {0,0,0},
-        {0,0, carbonLayerSeparation},
-        {0,0, carbonLayerSeparation+fluorineGrapheneSeparation}
-    };
+    Vector3d R_layer({0,0, carbonLayerSeparation});
     double ap = a/sqrt(3);
-    // Vector3d offSetSite[2][4]={
-    vector<vector<Vector3d>> offSetSite={
-        {//Layer1
-            Vector3d({0,0,0}),
-            Vector3d({  ap/2, ap*sqrt(3)/2, 0}),
-            Vector3d({3*ap/2, ap*sqrt(3)/2, 0}),
-            Vector3d({2*ap, 0, 0})
-        },
-        {//Layer2
+    Vector3d offSetSite[2][4]={
+        {
             Vector3d({0,0,0}),
             Vector3d({ap*0.5, ap*sqrt(3)/2, 0}),
             Vector3d({ap*0.5+ap, ap*sqrt(3)/2, 0}),
             Vector3d({2*ap*0.5+ap, 0, 0})
         },
-        {//Fluorine
+        {
             Vector3d({0,0,0}),
-            Vector3d({3*ap/2, ap*sqrt(3)/2, 0})
+            Vector3d({ap*0.5, ap*sqrt(3)/2, 0}),
+            Vector3d({ap*0.5+ap, ap*sqrt(3)/2, 0}),
+            Vector3d({2*ap*0.5+ap, 0, 0})
         }
     };
 
@@ -254,15 +228,15 @@ void Graphene::setupRectangularGeometry(){
             Vector3d({ap, 0, 0})
         };
 
-        for (int layer=0; layer<3; layer++){
-            for (int site=0; site<offSetSite[layer].size(); site++){
+        for (int layer=0; layer<2; layer++){
+            for (int site=0; site<numAtomsUnitCell; site++){
                 offSetSite[layer][site] = offSetSite[layer][site] + layerTranslation[layer];
             }
         }
     }
 
-    for (int layer=0; layer<3; layer++){
-        for (int site=0; site<offSetSite[layer].size(); site++){
+    for (int layer=0; layer<2; layer++){
+        for (int site=0; site<numAtomsUnitCell; site++){
             offSetSite[layer][site].x *= deformation[layer][0];
             offSetSite[layer][site].y *= deformation[layer][1];
         }
@@ -272,7 +246,7 @@ void Graphene::setupRectangularGeometry(){
     for (int kx=0; kx<SIZE_KX; kx++){
         for (int ky=0; ky<SIZE_KY; ky++){
             for(int layer=0; layer<2; layer++){
-                Vector3d layerPosition=layer*R_layer[layer];
+                Vector3d layerPosition=layer*R_layer;
                 for(int x=0; x<SIZE_X[layer]; x++){
                     Vector3d xVector({x*ax[layer],0,0});
                     for (int y=0; y<SIZE_Y[layer]; y++){
@@ -284,89 +258,22 @@ void Graphene::setupRectangularGeometry(){
                     }
                 }
             }
-            
-            if(addFluorine){
-                for(int layer=2; layer<3; layer++){
-                    Vector3d layerPosition = R_layer[layer];
-                    for(int x = 0; x < SIZE_X[layer]; x++){
-                        Vector3d xVector({x*ax[layer],0,0});
-                        for (int y = 0; y < SIZE_Y[layer]; y++){
-                            Vector3d yVector({0,y*ay[layer],0});
-                            for(int spin=0; spin<2; spin++){
-                                //Creates a vector to point to the current plaquette. 
-                                Vector3d plaquettePosition = layerPosition+xVector*deformation[layer][0]+yVector*deformation[layer][1];	
-                                geometry.setCoordinate({kx, ky, layer, x, y, 0, spin}, (plaquettePosition+offSetSite[layer][0]).getStdVector());
-                                geometry.setCoordinate({kx, ky, layer, x, y, 1, spin}, (plaquettePosition+offSetSite[layer][1]).getStdVector());
-                            }
-                        }
-                    }
-                }
-            }
         } 
     }
     Timer::tock();
 }
 void Graphene::setupHexagonalGeometry(){
-    
-    Timer::tick("Setup hexagonal geometry");
-    
-    double a1[2]={(3/2)*a*sqrt(3), -a/2};
-    double a2[2]={(3/2)*a*sqrt(3), +a/2};
-    
-    double carbonLayerSeparation = 3.3;
-    Vector3d R_layer({0,0, carbonLayerSeparation});
-    
-    Vector3d offSetSite[2][4]={
-        {
-            Vector3d({0,0,0}),
-            Vector3d({(2/sqrt(3))*a, 0, 0}),
-        },
-        {
-            Vector3d({0,0,0}),
-            Vector3d({(2/sqrt(3))*a, 0, 0}),
-        }
-    };
 
-    if (abStacking==true){
-        Vector3d layerTranslation[2]={
-            Vector3d({(2/sqrt(3))*a/2, 0, 0}),
-            Vector3d({(2/sqrt(3))*a/2, 0, 0})
-        };
-
-        for (int layer=0; layer<2; layer++){
-            for (int site=0; site<numAtomsUnitCell; site++){
-                offSetSite[layer][site] = offSetSite[layer][site] + layerTranslation[layer];
-            }
-        }
-    }
-
-    Geometry& geometry = model.getGeometry();
-    for (int kx=0; kx<SIZE_KX; kx++){
-        for (int ky=0; ky<SIZE_KY; ky++){
-            for(int layer=0; layer<2; layer++){
-                Vector3d layerPosition=layer*R_layer;
-                for(int x=0; x<SIZE_X[layer]; x++){
-                    Vector3d xVector({x*a1[layer],0,0});
-                    for (int y=0; y<SIZE_Y[layer]; y++){
-                        Vector3d yVector({0,y*a2[layer],0});					
-                        for(int site=0; site<numAtomsUnitCell; site++){
-                            Vector3d plaquettePosition=layerPosition;
-                            geometry.setCoordinate({kx, ky, layer, x, y, site}, (plaquettePosition+offSetSite[layer][site]).getStdVector());
-                        }
-                    }
-                }
-            }
-        } 
-    }
-    Timer::tock();
-
+    TBTKExit(
+        "SetupHexagonalGeometry()",
+        "Still building the function",
+        "");
+    exit(1);
 }
-
 void Graphene::printGeometry(){
     Timer::tick("Print geometry");
     ofstream fout0("systemInfo/geometry/coordinatesLayer0");
     ofstream fout1("systemInfo/geometry/coordinatesLayer1");
-    ofstream fout2("systemInfo/geometry/coordinatesLayer2");
     Geometry& geometry = model.getGeometry();
     for(int layer=0; layer<2; layer++){
         for(int x=0; x<SIZE_X[layer]; x++){
@@ -382,23 +289,8 @@ void Graphene::printGeometry(){
         }
     }
 
-    if(addFluorine){
-		for(int layer=2; layer<3; layer++){				
-			for(int x = 0; x < SIZE_X[layer]; x++){
-				for (int y = 0; y < SIZE_Y[layer]; y++){						
-					for(int site = 0; site < 2; site++){
-						Vector3d position = geometry.getCoordinate({0, 0, layer, x, y, site, 0});
-						fout2 << position.x << "\t" << position.y << "\n";
-						Streams::out << position.x << "\t" << position.y << "\n";
-					}
-				}
-			}
-		}
-	}
-    
     fout0.close();
     fout1.close();
-    fout2.close();
     Timer::tock();
 
 }
@@ -453,7 +345,7 @@ void Graphene::calculateBandStructure(){
         if(max < bandStructure[{numBands-1,n}])
             max = bandStructure[{numBands-1,n}];
     }	
-    
+
     //Plotting
     Plotter plotter;		
     plotter.clear();
@@ -482,7 +374,7 @@ void Graphene::runDOSCalculation(){
     }
 void Graphene::calculateDOS(){
     Timer::tick("Calculate DOS");
-    
+
     //Property Extractor
     PropertyExtractor::BlockDiagonalizer propertyExtractor(solver);
     //Setting the energyWindow
@@ -495,4 +387,4 @@ void Graphene::calculateDOS(){
     plotter.save("figures/DOS.png");
     plotter.clear();
     Timer::tock();
-}
+} 

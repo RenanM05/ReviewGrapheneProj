@@ -138,63 +138,35 @@ void Graphene::setupModel(const vector<int> &kPoint){
     model.construct();
     Timer::tock();
 }	
+
 void Graphene::addHoppingAmplitude(const vector<int> &kPoint){
+
 
     int kx=kPoint[0];
     int ky=kPoint[1];
 
-    int startPointLayer = addGrapheneBottomLayer ? 0 : 1;
-    for(int layer=startPointLayer; layer<2; layer++){
-        for(int x = 0; x < SIZE_X[layer]; x++){
-            for (int y = 0; y < SIZE_Y[layer]; y++){
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 1}, {kx, ky, layer, x,y,0}) + HC;
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 2}, {kx, ky, layer, x,y,1}) + HC;
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, x, y, 3}, {kx, ky, layer, x,y,2}) + HC;
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, (x+1)%SIZE_X[layer],y,0}, {kx, ky, layer, x,y,3}) + HC;
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],0}, {kx, ky, layer, x,y,1}) + HC;
-                model << HoppingAmplitude(tCallBack, {kx, ky, layer, x,(y+1)%SIZE_Y[layer],3}, {kx, ky, layer, x,y,2}) + HC;						
-            }
-        }
-    }
-
-    if(addGrapheneBottomLayer){
-        // const double interlayerHoppingCuttOff=1e-7;
+    int startPointLayer = addGrapheneBottomLayer ? 0:1;
+   	const double EPSILON = 1e-2;
+    for(int toLayer=startPointLayer; toLayer<2; toLayer++){
         for(int toX = 0; toX < SIZE_X[0]; toX++){
-            for (int toY = 0; toY < SIZE_Y[0]; toY++){					
+            for (int toY = 0; toY < SIZE_Y[0]; toY++){
                 for (int toSite=0; toSite<4; toSite++){
-                    for(int fromX = 0; fromX < SIZE_X[1]; fromX++){
-                        for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){					
-                            for (int fromSite=0; fromSite<4; fromSite++){
-    							// if (abs(tCallBack.getHoppingAmplitude({kx, ky, 0, toX, toY, toSite}, {kx, ky, 1, fromX, fromY,fromSite})) > interlayerHoppingCuttOff)
-                                model << HoppingAmplitude(tCallBack, {kx, ky, 0, toX, toY, toSite}, {kx, ky, 1, fromX, fromY,fromSite});
+                    for(int fromLayer=startPointLayer; fromLayer<2; fromLayer++){
+                        for(int fromX = 0; fromX < SIZE_X[1]; fromX++){
+                            for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){
+                                for (int fromSite = 0; fromSite < 4; fromSite++){
+                                    if (abs(tCallBack.getHoppingAmplitude({kx, ky, toLayer, toX, toY, toSite}, {kx, ky, fromLayer, fromX,fromY,fromSite})) > EPSILON){                                                                               
+                                        model << HoppingAmplitude(tCallBack, {kx, ky, toLayer, toX, toY, toSite}, {kx, ky, fromLayer, fromX,fromY,fromSite}); // + HC;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-        }             
+        }
     }
-
-    // int startPointLayer = addGrapheneBottomLayer ? 0:1;
-    // for(int toLayer=startPointLayer; toLayer<2; toLayer++){
-    //     for(int toX = 0; toX < SIZE_X[0]; toX++){
-    //         for (int toY = 0; toY < SIZE_Y[0]; toY++){
-    //             for (int toSite = 0; toSite < 4; toSite++){
-    //                 for(int fromLayer=startPointLayer; fromLayer<2; fromLayer++){
-    //                     for(int fromX = 0; fromX < SIZE_X[1]; toX++){
-    //                         for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){
-    //                             for (int fromSite = 0; fromSite < 4; fromSite++){
-    //                                 model << HoppingAmplitude(tCallBack, {kx, ky, toLayer, toX, toY, toSite}, {kx, ky, fromLayer, fromX,fromY,fromSite}); // + HC;
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }               
-    //         }
-    //     }
-    // }
-
-}   
+}
 
 //RealSpace - LatticeInformation
 // void Graphene::setupGeometry(const vector<int> &kPoint){

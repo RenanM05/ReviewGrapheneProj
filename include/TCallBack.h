@@ -52,13 +52,11 @@ private:
 	double R_X;
 	double R_Y;
 	double a;
-	const Model& model;
+	const Model *model;
 
 	RadialAndAngularMode radialAndAngularMode;
 
 	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const;
-	complex<double> f(const Index &to, const Index &from) const;
-
 	complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
 	complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
 	complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;

@@ -34,7 +34,7 @@ numAtomsUnitCell(4),
 SIZE_X({5,5}),
 SIZE_Y({5,5}),
 rectangularUnitCell(true),
-addGrapheneBottomLayer(false),
+addGrapheneBottomLayer(true),
 abStacking(true),
 addFluorine(false),
 unitCellSize({SIZE_X[0]*a*sqrt(3), SIZE_Y[0]*a}),
@@ -204,7 +204,7 @@ void Graphene::setupRectangularGeometry(){
     vector<vector<double>> deformation = {{1, 1},{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}};
     double ax[2]={3*(a/sqrt(3)), 3*(a/sqrt(3))};
     double ay[2]={a,a};
-    double carbonLayerSeparation = 3.0;
+    double carbonLayerSeparation = 3.3;
     Vector3d R_layer({0,0, carbonLayerSeparation});
     double ap = a/sqrt(3);
     Vector3d offSetSite[2][4]={

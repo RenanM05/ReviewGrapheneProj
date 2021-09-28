@@ -50,6 +50,7 @@ RESOLUTION(1000),
 SMOOTHING_SIGMA(0.1),
 SMOOTHING_WINDOW(51)
 {
+    grapheneUnitCell = SelectGrapheneUnitCell::Hexagonal;
 }
 
 //Reciprocal-Space - BrillouinZone
@@ -138,7 +139,6 @@ void Graphene::setupModel(const vector<int> &kPoint){
     model.construct();
     Timer::tock();
 }	
-
 void Graphene::addHoppingAmplitude(const vector<int> &kPoint){
 
 
@@ -168,16 +168,29 @@ void Graphene::addHoppingAmplitude(const vector<int> &kPoint){
     }
 }
 
-//RealSpace - LatticeInformation
-// void Graphene::setupGeometry(const vector<int> &kPoint){
-//     if (rectangularUnitCell==true){
-//         setupRectangularGeometry();
-//     } else{
-//         setupHexagonalGeometry();
-//     };
-// }
-void Graphene::setupGeometry(const vector<int> &kPoint){
-// void Graphene::setupRectangularGeometry(const vector<int> &kPoint){
+//RealSpace - Geometry/LatticeInformation
+Geometry Graphene::setupGeometry(const vector<int> &kPoint){
+	switch(grapheneUnitCell){	
+    case SelectGrapheneUnitCell::Rectangular:
+		return setupRectangularGeometry(kPoint);
+    case SelectGrapheneUnitCell::Hexagonal:
+		return setupHexagonalGeometry(kPoint);
+    default:
+		TBTKExit(
+			"TCallBack::radialAndAngularDependence",
+			"Unknown mode.",
+			"This should never happen."
+		);
+	}
+}
+Geometry Graphene::setupHexagonalGeometry(const vector<int> &kPoint){
+    TBTKExit(
+        "SetupHexagonalGeometry()",
+        "Still building the function",
+        "");
+    exit(1);
+}
+Geometry Graphene::setupRectangularGeometry(const vector<int> &kPoint){
     Timer::tick("Setup geometry");
     vector<vector<double>> deformation = {{1, 1},{SIZE_X[0]/((double)SIZE_X[1]), SIZE_Y[0]/((double)SIZE_Y[1])}};
     
@@ -246,14 +259,7 @@ void Graphene::setupGeometry(const vector<int> &kPoint){
     }
 
     Timer::tock();
-}
-void Graphene::setupHexagonalGeometry(){
-
-    TBTKExit(
-        "SetupHexagonalGeometry()",
-        "Still building the function",
-        "");
-    exit(1);
+    return geometry; 
 }
 void Graphene::printGeometry(){
     Timer::tick("Print geometry");

@@ -73,9 +73,14 @@ private:
 
     void setupModel(const std::vector<int> &kPoint);
 	void addHoppingAmplitude(const std::vector<int> &kPoint);
-	void setupGeometry(const std::vector<int> &kPoint);
-	void setupRectangularGeometry(const vector<int> &kPoint);
-	void setupHexagonalGeometry();
+	
+	enum class SelectGrapheneUnitCell{Hexagonal, Rectangular};
+	SelectGrapheneUnitCell grapheneUnitCell;
+	
+	TBTK::Geometry setupGeometry(const vector<int> &kPoint);
+	TBTK::Geometry setupRectangularGeometry(const vector<int> &kPoint);
+	TBTK::Geometry setupHexagonalGeometry(const vector<int> &kPoint);
+	
 	void printGeometry();
 	void setupAndRunSolver();
 	void calculateBandStructure(const std::vector<int> &kPoint, unsigned int linearKIndex);

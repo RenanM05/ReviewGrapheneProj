@@ -22,7 +22,8 @@ using namespace std;
 using namespace TBTK;
 using namespace Visualization::MatPlotLib;
 
-TCallBack::TCallBack(double a, const Model& model): a(a), model(&model){
+TCallBack::TCallBack(double a, const Model& model): a(a), model(&model)
+{
     radialAndAngularMode = RadialAndAngularMode::Full;    
 }
 

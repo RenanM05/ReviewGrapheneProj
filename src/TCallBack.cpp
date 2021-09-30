@@ -15,6 +15,7 @@
 #include <fstream>
 #include <limits>
 
+#include "SetGeometry.h"
 #include "TCallBack.h"
 
 using namespace std;

@@ -19,7 +19,8 @@
 #include <fstream>
 #include <limits>
 
-#include<TCallBack.h>
+#include "Parameters.h"
+#include "TCallBack.h"
 
 using namespace std;
 using namespace TBTK;
@@ -33,39 +34,18 @@ public:
     void runDOSCalculation();
 
 private:
-	//Reciprocal-Space - BrillouinZone
-	const int SIZE_K;
-	const int SIZE_KX;
-	const int SIZE_KY;
-	unsigned int K_POINTS_PER_PATH;
-	unsigned int numKpoints;
+
+	Parameters parameters;
 	
 	Array<double> bandStructure;
 
  	//Initializing the model
 	Model model;
 	Solver::BlockDiagonalizer solver;
- 	//RealSpace - LatticeInformation
-	double a; 
- 	const int numAtomsUnitCell;
-	vector<int> SIZE_X;
-	vector<int> SIZE_Y;
-	bool rectangularUnitCell;
-	bool addGrapheneBottomLayer;
-	bool abStacking;
-	bool addFluorine;
-	vector<double> unitCellSize;
-	vector<Vector3d> unitCellBasis;
+ 	
 	//Hamiltonian Parameters.
 	double t;
 	TCallBack tCallBack;
-	//Setup energy window
-	const double LOWER_BOUND;
-	const double UPPER_BOUND;
-	const int RESOLUTION;
-	//Gaussian smoothing parameters
-	const double SMOOTHING_SIGMA;
-	const unsigned int SMOOTHING_WINDOW;
 
 	vector<vector<int>> generateAllKPoints();
 	vector<vector<vector<int>>> generateKPaths();

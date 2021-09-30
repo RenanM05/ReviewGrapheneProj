@@ -14,14 +14,17 @@
 #include "TBTK/UnitHandler.h"
 #include "TBTK/Visualization/MatPlotLib/Plotter.h"
 
-#include "TCallBack.h"
-#include "SetGeometry.h"
-
 #include <complex>
 #include <iostream>
 #include <fstream>
 #include <limits>
 
+#include "Parameters.h"
+#include "TCallBack.h"
+
+using namespace std;
+using namespace TBTK;
+using namespace Visualization::MatPlotLib;
 
 class Graphene{
 public:
@@ -31,56 +34,31 @@ public:
     void runDOSCalculation();
 
 private:
-	//Reciprocal-Space - BrillouinZone
-	const int SIZE_K;
-	const int SIZE_KX;
-	const int SIZE_KY;
-	unsigned int K_POINTS_PER_PATH;
-	unsigned int numKpoints;
+
+	Parameters parameters;
 	
-	TBTK::Array<double> bandStructure;
+	Array<double> bandStructure;
 
  	//Initializing the model
-	TBTK::Model model;
-	TBTK::Solver::BlockDiagonalizer solver;
- 	// //RealSpace - LatticeInformation
-	double a; 
- 	// const int numAtomsUnitCell;
-	// vector<int> SIZE_X;
-	// vector<int> SIZE_Y;
-	// bool rectangularUnitCell;
-	// bool addGrapheneBottomLayer;
-	// bool abStacking;
-	// bool addFluorine;
-	// vector<double> unitCellSize;
-	// vector<Vector3d> unitCellBasis;
-	SetGeometry setGeometry;
+	Model model;
+	Solver::BlockDiagonalizer solver;
+ 	
 	//Hamiltonian Parameters.
 	double t;
-	TCallBack tCallBack;	
-	//Setup energy window
-	const double LOWER_BOUND;
-	const double UPPER_BOUND;
-	const int RESOLUTION;
-	//Gaussian smoothing parameters
-	const double SMOOTHING_SIGMA;
-	const unsigned int SMOOTHING_WINDOW;
+	TCallBack tCallBack;
 
-	std::vector<std::vector<int>> generateAllKPoints();
-	std::vector<std::vector<std::vector<int>>> generateKPaths();
-	std::vector<std::vector<int>> kPathsToKpoints(const std::vector<std::vector<std::vector<int>>> &kPaths);
+	vector<vector<int>> generateAllKPoints();
+	vector<vector<vector<int>>> generateKPaths();
+	vector<vector<int>> kPathsToKpoints(const vector<vector<vector<int>>> &kPaths);
 
     void setupModel(const std::vector<int> &kPoint);
 	void addHoppingAmplitude(const std::vector<int> &kPoint);
+		
+	TBTK::Geometry setupGeometry(const vector<int> &kPoint);
+	TBTK::Geometry setupRectangularGeometry(const vector<int> &kPoint);
+	TBTK::Geometry setupHexagonalGeometry(const vector<int> &kPoint);
 	
-	// enum class SelectGrapheneUnitCell{Hexagonal, Rectangular};
-	// SelectGrapheneUnitCell grapheneUnitCell;
-	
-	// TBTK::Geometry setupGeometry(const vector<int> &kPoint);
-	// TBTK::Geometry setupRectangularGeometry(const vector<int> &kPoint);
-	// TBTK::Geometry setupHexagonalGeometry(const vector<int> &kPoint);
-	// void printGeometry();
-
+	void printGeometry();
 	void setupAndRunSolver();
 	void calculateBandStructure(const std::vector<int> &kPoint, unsigned int linearKIndex);
 	TBTK::Property::DOS calculateDOS();

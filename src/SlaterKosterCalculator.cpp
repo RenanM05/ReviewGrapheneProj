@@ -1,73 +1,68 @@
-#include "TBTK/TBTK.h"
 #include "SlaterKosterCalculator.h"
+using namespace std; 
+using namespace TBTK; 
+SlaterKosterCalculator::SlaterKosterCalculator(
+    double a
+) :
+    a(a),
+    t(2.8),
+    beta(3),
+    alpha(-0.4*exp(+beta*(3.4/(a/sqrt(3)) - 1))),
+	Vppsigma(alpha),//-0.81
+	Vpppi(-t),
+    Vspsigma(1.84),
+    Vsssigma(-1.4)
 
-using namespace std;
-using namespace TBTK;
-
-SlaterKosterCalculator::SlaterKosterCalculator(double a):
-a(a),
-t(2.8),
-beta(3),//1.9467973982212834;
-alpha(-0.2*exp(+beta*(3.4/(a/sqrt(3)) - 1))),
-// alpha(-0.4*exp(+beta*(3.4/(a/sqrt(3)) - 1))),
-Vsssigma(1),
-Vppsigma(alpha),
-Vspsigma(1),
-Vpppi(-t)
 {
 }
-
-complex<double> SlaterKosterCalculator::calculate(Orbital toOrbital, Orbital fromOrbital, const TBTK::Vector3d& separation) const{
-    if (separation.norm()<1e-3)
+complex<double> SlaterKosterCalculator::calculate(Orbital toOrbital, Orbital fromOrbital, const Vector3d& separation) const{
+    if(separation.norm() < 1e-3){
+        if (toOrbital == Orbital::s && fromOrbital == Orbital::s)
+            return -15;
+        
         return 0;
- 
-    if(toOrbital==Orbital::s && fromOrbital==Orbital::s){
+    }
+    if (toOrbital == Orbital::s && fromOrbital == Orbital::s)
         return calculateSS(separation);
-    } else if (toOrbital==Orbital::s && fromOrbital==Orbital::px){
+    else if (toOrbital == Orbital::s && fromOrbital == Orbital::px)
         return calculateSPX(separation);
-    } else if (toOrbital==Orbital::s && fromOrbital==Orbital::py){
-        return calculateSPY(separation); 
-    }else if  (toOrbital==Orbital::s && fromOrbital==Orbital::pz){
-        return calculateSPY(separation);  
-    }
-
-    if(toOrbital==Orbital::px && fromOrbital==Orbital::px){
-        return calculatePXPX(separation);
-    } else if (toOrbital==Orbital::px && fromOrbital==Orbital::s){
+    else if (toOrbital == Orbital::s && fromOrbital == Orbital::py)
+        return calculateSPY(separation);
+    else if (toOrbital == Orbital::s && fromOrbital == Orbital::pz)
+        return calculateSPZ(separation);
+    
+    else if (toOrbital == Orbital::px && fromOrbital == Orbital::s)
         return calculatePXS(separation);
-    } else if (toOrbital==Orbital::px && fromOrbital==Orbital::py){
-        return calculatePXPY(separation); 
-    }else if  (toOrbital==Orbital::px && fromOrbital==Orbital::pz){
-        return calculatePXPZ(separation);  
-    }
-
-    if(toOrbital==Orbital::py && fromOrbital==Orbital::py){
-        return calculatePYPY(separation);
-    } else if (toOrbital==Orbital::py && fromOrbital==Orbital::s){
+    else if (toOrbital == Orbital::px && fromOrbital == Orbital::px)
+        return calculatePXPX(separation);
+    else if (toOrbital == Orbital::px && fromOrbital == Orbital::py)
+        return calculatePXPY(separation);
+    else if (toOrbital == Orbital::px && fromOrbital == Orbital::pz)
+        return calculatePXPZ(separation);
+    
+    else if (toOrbital == Orbital::py && fromOrbital == Orbital::s)
         return calculatePYS(separation);
-    } else if (toOrbital==Orbital::py && fromOrbital==Orbital::px){
-        return calculatePYPX(separation); 
-    }else if  (toOrbital==Orbital::py && fromOrbital==Orbital::pz){
-        return calculatePYPZ(separation);  
-    }
-
-    if(toOrbital==Orbital::pz && fromOrbital==Orbital::pz){
-        return calculatePZPZ(separation);
-    } else if (toOrbital==Orbital::pz && fromOrbital==Orbital::s){
+    else if (toOrbital == Orbital::py && fromOrbital == Orbital::px)
+        return calculatePYPX(separation);
+    else if (toOrbital == Orbital::py && fromOrbital == Orbital::py)
+        return calculatePYPY(separation);
+    else if (toOrbital == Orbital::py && fromOrbital == Orbital::pz)
+        return calculatePYPZ(separation);
+    
+    else if (toOrbital == Orbital::pz && fromOrbital == Orbital::s)
         return calculatePZS(separation);
-    } else if (toOrbital==Orbital::pz && fromOrbital==Orbital::px){
-        return calculatePZPX(separation); 
-    }else if  (toOrbital==Orbital::pz && fromOrbital==Orbital::py){
-        return calculatePZPY(separation);  
-    }
-
+    else if (toOrbital == Orbital::pz && fromOrbital == Orbital::px)
+        return calculatePZPX(separation);
+    else if (toOrbital == Orbital::pz && fromOrbital == Orbital::py)
+        return calculatePZPY(separation);
+    else if (toOrbital == Orbital::pz && fromOrbital == Orbital::pz)
+        return calculatePZPZ(separation);
     TBTKExit(
-    "SlaterKosterCalculator::calculate()",
-    "Unknown orbital",
-    "This should never happen."
+        "SlaterKosterCalculator::calculate()",
+        "Unknown orbital",
+        "This should never happen."
     );
 }
-
 //S
 complex<double> SlaterKosterCalculator::calculateSS(const TBTK::Vector3d& separation) const{
     double distance = separation.norm();
@@ -88,7 +83,6 @@ complex<double> SlaterKosterCalculator::calculateSPZ(const TBTK::Vector3d& separ
     double n = Vector3d::dotProduct(separation.unit(), {0, 0, 1});
     return n*Vspsigma*exp(-beta*(distance/(a/sqrt(3)) - 1));
 }
-
 //PX
 complex<double> SlaterKosterCalculator::calculatePXS(const TBTK::Vector3d& separation) const{
     double distance = separation.norm();
@@ -112,8 +106,6 @@ complex<double> SlaterKosterCalculator::calculatePXPZ(const TBTK::Vector3d& sepa
     double n = Vector3d::dotProduct(separation.unit(), {0, 0, 1});
     return l*n*(Vppsigma - Vpppi)*exp(-beta*(distance/(a/sqrt(3)) - 1));
 }
-
-
 //PY
 complex<double> SlaterKosterCalculator::calculatePYS(const TBTK::Vector3d& separation) const{
     double distance = separation.norm();
@@ -159,17 +151,4 @@ complex<double> SlaterKosterCalculator::calculatePZPZ(const TBTK::Vector3d& sepa
     double distance = separation.norm();
 	double n = Vector3d::dotProduct(separation.unit(), {0, 0, 1});
 	return ((n*n)*Vppsigma+(1-(n*n))*Vpppi)*exp(-beta*(distance/(a/sqrt(3)) - 1));
-} 
-
-//     double distance = separation.norm();
-// 	double n = Vector3d::dotProduct(separation.unit(), {0, 0, 1});
-
-// 	double beta=1.9467973982212834;
-// 	double alpha=-0.2*exp(+beta*(3.3/(a/sqrt(3)) - 1));
-// 	double Vppsigma = alpha*exp(-beta*(distance/(a/sqrt(3)) - 1));
-// 	double Vpppi = -t*exp(-beta*(distance/(a/sqrt(3)) - 1));
-
-// 	return (n*n)*Vppsigma+(1-(n*n))*Vpppi;
-
-// 	// return ((n*n)*Vppsigma+(1-(n*n))*Vpppi)*exp(-beta*(distance/(a/sqrt(3)) - 1));
-// }
+}

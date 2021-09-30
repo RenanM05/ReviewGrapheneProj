@@ -21,10 +21,10 @@ private:
     double beta;
     double alpha; 
 
-    double Vsssigma;
     double Vppsigma;
+	double Vpppi;
     double Vspsigma;
-    double Vpppi;
+    double Vsssigma;
     
     std::complex<double> calculateSS( const TBTK::Vector3d &separation) const;
     std::complex<double> calculateSPX(const TBTK::Vector3d &separation) const;

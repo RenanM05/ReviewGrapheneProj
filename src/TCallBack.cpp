@@ -1,54 +1,52 @@
-#include "TBTK/BrillouinZone.h"
+#include "TBTK/TBTK.h"
+#include "TBTK/Range.h"
 #include "TBTK/Model.h"
+#include "TBTK/BrillouinZone.h"
+#include "TBTK/Solver/BlockDiagonalizer.h"
 #include "TBTK/PropertyExtractor/BlockDiagonalizer.h"
 #include "TBTK/Property/DOS.h"
-#include "TBTK/Range.h"
 #include "TBTK/Smooth.h"
-#include "TBTK/Solver/BlockDiagonalizer.h"
-#include "TBTK/TBTK.h"
-#include "TBTK/Timer.h"
 #include "TBTK/UnitHandler.h"
-#include "TBTK/Visualization/MatPlotLib/Plotter.h"
+#include "TBTK/Timer.h"
+#include "TBTK/TBTKMacros.h"
 
 #include <complex>
 #include <iostream>
 #include <fstream>
 #include <limits>
 
-#include "Graphene.h"
 #include "TCallBack.h"
-#include "SlaterKosterCalculator.h"
 
 using namespace std;
 using namespace TBTK;
-using namespace Visualization::MatPlotLib;
 
-TCallBack::TCallBack(double a, const Model& model): a(a), model(&model), slaterKosterCalculator(a)
-{
-    // radialAndAngularMode = RadialAndAngularMode::Full;    
-}
+TCallBack::TCallBack(double a, const Model& model): model(&model), slaterKosterCalculator(a){
+	this->a = a;
+};
 
 complex<double> TCallBack::getHoppingAmplitude(const Index &to, const Index &from) const{
-	
+	Timer::tick(0);
 	const complex<double> i(0,1);
+
 	int kx = to[0];
 	int ky = to[1];
+
 	const Geometry& geometry = model->getGeometry();
-	Vector3d toCoordinate = geometry.getCoordinate(to);
-	Vector3d fromCoordinate = geometry.getCoordinate(from);
-	Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
+	const Vector3d& toCoordinate = geometry.getCoordinate(to);
+	const Vector3d& fromCoordinate = geometry.getCoordinate(from);
+
 	Vector3d k({
-		(2*(M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX))),
-		(2*(M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY))),
+		((2*M_PI)/(unitCellSize[0]))*(kx/((double)(SIZE_KX))),
+		((2*M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY))),
 		0
 	});
-
+	Timer::tock(0);
 	complex<double> result = 0;
 	for (int x=-1; x<2; x++){
 		Vector3d xTranslation = x*unitCellBasis[0];
 		for (int y=-1; y<2; y++){
 			Vector3d translation = xTranslation + y*unitCellBasis[1];
-			result += radialAndAngularDependence(
+			result -= radialAndAngularDependence(
 				to, 
 				from, 
 				toCoordinate, 
@@ -56,92 +54,40 @@ complex<double> TCallBack::getHoppingAmplitude(const Index &to, const Index &fro
 			)*exp(i*Vector3d::dotProduct(k, translation));
 		}
 	};
-	// return radialAndAngularDependence(to, from)*exp(i*Vector3d::dotProduct(k, distanceMinimizingTranslation));
 	return result;
 } 
-Vector3d TCallBack::getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const {
-	double smallestNorm = std::numeric_limits<double>::infinity(); 		
-	Vector3d requiredTranslation({0,0,0});
-	for (int x=-1; x<2; x++){
-		for (int y=-1; y<2; y++){
-			Vector3d translation = x*unitCellBasis[0]+ y*unitCellBasis[1];
-			Vector3d translatedFromCoordinate = fromCoordinate + translation;
-			Vector3d difference = toCoordinate - translatedFromCoordinate;
-			double norm = difference.norm();
-			if(smallestNorm > norm){
-				smallestNorm = norm;
-				requiredTranslation = translation;
-			}
-		};
-	};
-	return requiredTranslation;
-}
 
+// This function is responsable to handle with one pair of indices
+complex<double> TCallBack::radialAndAngularDependence(
+	const Index &to, 
+	const Index &from, 
+	const Vector3d &toCoordinate,
+	const Vector3d &fromCoordinate
+) const{
 
-complex<double> TCallBack::radialAndAngularDependenceFull(const TBTK::Index &to, const TBTK::Index &from,const TBTK::Vector3d &toCoordinate, const TBTK::Vector3d &fromCoordinate) const{
-	
-	// Vector3d toCoordinate=model->getGeometry().getCoordinate(to);
-	// Vector3d fromCoordinate=model->getGeometry().getCoordinate(from);
+	Vector3d difference = toCoordinate-fromCoordinate; 
 
-	// Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
-	// Vector3d difference = fromCoordinate + distanceMinimizingTranslation - toCoordinate;
-	// double distance = difference.norm();
-
-	// double beta=1.9467973982212834;
-	// double alpha=-0.2*exp(+beta*(3.3/(a/sqrt(3)) - 1));
-	// double n = Vector3d::dotProduct(difference.unit(), {0, 0, 1});
-	// double Vppsigma = alpha*exp(-beta*(distance/(a/sqrt(3)) - 1));
-	// double Vpppi = -t*exp(-beta*(distance/(a/sqrt(3)) - 1));
-
-	//Just for Pz-Pz
-	// return (n*n)*Vppsigma+(1-(n*n))*Vpppi;
-
-	Vector3d difference = fromCoordinate - toCoordinate; 
-	SlaterKosterCalculator::Orbital toOrbital  = TCallBack::getOrbitalFromSubIndex(to[6]);
-	SlaterKosterCalculator::Orbital fromOrbital= TCallBack::getOrbitalFromSubIndex(from[6]);
+	SlaterKosterCalculator::Orbital toOrbital = getOrbitalFromSubIndex(to[6]);
+	SlaterKosterCalculator::Orbital fromOrbital = getOrbitalFromSubIndex(from[6]);
 
 	return slaterKosterCalculator.calculate(toOrbital, fromOrbital, difference);
 }
 
-std::complex<double> TCallBack::radialAndAngularDependence(
-	const TBTK::Index &to, 
-	const TBTK::Index &from,	
-	const TBTK::Vector3d &toCoordinate, 
-	const TBTK::Vector3d &fromCoordinate
-) const{
-	return radialAndAngularDependenceFull(to, from, toCoordinate, fromCoordinate);
-	// switch(radialAndAngularMode){
-	// case RadialAndAngularMode::Full:
-	// 	return radialAndAngularDependenceFull(to, from);
-	// case RadialAndAngularMode::NearestNeighbor:
-	// 	return radialAndAngularDependenceNearestNeighbor(to, from);
-	// default:
-	// 	TBTKExit(
-	// 		"TCallBack::radialAndAngularDependence",
-	// 		"Unknown mode.",
-	// 		"This should never happen."
-	// 	);
-	// }
+void TCallBack::setSIZE_KX(int SIZE_KX){
+	this->SIZE_KX = SIZE_KX;
 }
-
-// complex<double> TCallBack::TCallBack::radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const{
-// 	Vector3d toCoordinate=model->getGeometry().getCoordinate(to);
-// 	Vector3d fromCoordinate=model->getGeometry().getCoordinate(from);
-// 	Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
-// 	Vector3d difference = fromCoordinate + distanceMinimizingTranslation - toCoordinate;
-// 	double smallestDistance = difference.norm();
-// 	double beta=200;
-//     if (to[2] == from[2]){
-// 		return -t*exp(-beta*(smallestDistance/(a/sqrt(3)) - 1));
-// 	} else if((to[2] == 0 && from[2] == 1) || (to[2] == 1 && from[2] == 0)){
-// 		return -t*(0.2/2.8)*exp(-beta*(smallestDistance/(3.4) - 1));
-// 	} else if((to[2] == 1 && from[2] == 2) || (to[2] == 2 && from[2] == 1)){
-// 		return -t*(0.2/2.8)*exp(-beta*(smallestDistance/(3.4) - 1));
-// 	}else{
-// 		TBTKExit(
-// 			"TCallBack::radialAndAngularDependenceNearestNeighbor()",
-// 			"Unexpected layer combination.",
-// 			"This should never happen."
-// 		);
-// 	}	
-// }
+void TCallBack::setSIZE_KY(int SIZE_KY){
+	this->SIZE_KY = SIZE_KY;
+}
+void TCallBack::setSIZE_X(vector<int> SIZE_X){
+	this->SIZE_X = SIZE_X;
+}
+void TCallBack::setSIZE_Y(vector<int> SIZE_Y){
+	this->SIZE_Y = SIZE_Y;
+}
+void TCallBack::setUnitCellSize(vector<double> unitCellSize){
+	this->unitCellSize = unitCellSize;
+}
+void TCallBack::setUnitCellBasis(vector<Vector3d> unitCellBasis){
+	this->unitCellBasis = unitCellBasis;
+}

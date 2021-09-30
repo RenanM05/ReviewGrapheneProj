@@ -20,56 +20,33 @@
 
 #include "SlaterKosterCalculator.h"
 
-using namespace std;
-using namespace TBTK;
-using namespace Visualization::MatPlotLib;
-
-const complex<double> i(0,1);
-
-
-class TCallBack: public HoppingAmplitude::AmplitudeCallback{
+class TCallBack: public TBTK::HoppingAmplitude::AmplitudeCallback{
 public: 
-	// enum class RadialAndAngularMode{Full, NearestNeighbor};
+	TCallBack(double a, const TBTK::Model& model);
+	std::complex<double> getHoppingAmplitude(const TBTK::Index &to, const TBTK::Index &from) const;
 
-	TCallBack(double a, const Model& model);
-	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const;
-
-	// void setT(double t){this->t = t;}
-	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
-	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
-	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
-	void setSIZE_Y(vector<int> SIZE_Y){this-> SIZE_Y = SIZE_Y;}
-	void setUnitCellSize(vector<double> unitCellSize){this-> unitCellSize = unitCellSize;}
-	void setUnitCellBasis(vector<Vector3d> unitCellBasis){this-> unitCellBasis = unitCellBasis;}
+	void setSIZE_KX(int SIZE_KX);
+	void setSIZE_KY(int SIZE_KY);
+	void setSIZE_X(std::vector<int> SIZE_X);
+	void setSIZE_Y(std::vector<int> SIZE_Y);
+	void setUnitCellSize(std::vector<double> unitCellSize);
+	void setUnitCellBasis(std::vector<TBTK::Vector3d> unitCellBasis);
 
 private:
-	// double t;
-	vector<int> SIZE_X;
-	vector<int> SIZE_Y;
-	vector<double> unitCellSize;
-	vector<Vector3d> unitCellBasis;
+
+	std::vector<int> SIZE_X;
+	std::vector<int> SIZE_Y;
+	std::vector<double> unitCellSize;
+	std::vector<TBTK::Vector3d> unitCellBasis;
+
 	int SIZE_KX;
 	int SIZE_KY;
 	double R_X;
 	double R_Y;
 	double a;
-	const Model *model;
-
+	const TBTK::Model *model;
 
 	SlaterKosterCalculator slaterKosterCalculator;
-	SlaterKosterCalculator::Orbital getOrbitalFromSubIndex(int subIndex) const;
-	// RadialAndAngularMode radialAndAngularMode;
-
-	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const;
-	// complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
-	// complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
-	// complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;
-	std::complex<double> radialAndAngularDependenceFull(
-		const TBTK::Index &to,
-		const TBTK::Index &from,
-		const TBTK::Vector3d &toCoordinate,
-		const TBTK::Vector3d &fromCoordinate
-	) const; 
 	
 	std::complex<double> radialAndAngularDependence(
 		const TBTK::Index &to,
@@ -78,6 +55,7 @@ private:
 		const TBTK::Vector3d &fromCoordinate
 	) const; 
 	
+	SlaterKosterCalculator::Orbital getOrbitalFromSubIndex(int subIndex) const;
 };
 
 inline SlaterKosterCalculator::Orbital TCallBack::getOrbitalFromSubIndex(int subIndex) const{

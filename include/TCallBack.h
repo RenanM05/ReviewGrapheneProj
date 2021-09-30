@@ -61,10 +61,22 @@ private:
 	// RadialAndAngularMode radialAndAngularMode;
 
 	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const;
-	complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
-	complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
+	// complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
+	// complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
 	// complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;
-
+	std::complex<double> radialAndAngularDependenceFull(
+		const TBTK::Index &to,
+		const TBTK::Index &from,
+		const TBTK::Vector3d &toCoordinate,
+		const TBTK::Vector3d &fromCoordinate
+	) const; 
+	
+	std::complex<double> radialAndAngularDependence(
+		const TBTK::Index &to,
+		const TBTK::Index &from,
+		const TBTK::Vector3d &toCoordinate,
+		const TBTK::Vector3d &fromCoordinate
+	) const; 
 	
 };
 

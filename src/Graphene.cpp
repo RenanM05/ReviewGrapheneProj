@@ -31,8 +31,8 @@ K_POINTS_PER_PATH(SIZE_K/2),
 //RealSpace - LatticeInformation
 a(2.45),
 numAtomsUnitCell(4),
-SIZE_X({5,5}),
-SIZE_Y({5,5}),
+SIZE_X({1,1}),
+SIZE_Y({1,1}),
 rectangularUnitCell(true),
 addGrapheneBottomLayer(true),
 abStacking(true),
@@ -175,15 +175,15 @@ void Graphene::addHoppingAmplitude(const vector<int> &kPoint){
 	int firstLayer = addGrapheneBottomLayer ? 0 : 1;
 	const double EPSILON = 1e-4;
 	for(int toLayer = firstLayer; toLayer<2; toLayer++){
-		for(int toX = 0; toX < SIZE_X[0]; toX++){
-			for (int toY = 0; toY < SIZE_Y[0]; toY++){					
+		for(int toX = 0; toX < SIZE_X[toLayer]; toX++){
+			for (int toY = 0; toY < SIZE_Y[toLayer]; toY++){					
 				for (int toSite=0; toSite<4; toSite++){				
-					for(int toOrbital=0; toOrbital<4; toOrbital++){
+					for(int toOrbital=3; toOrbital<4; toOrbital++){
 						for(int fromLayer = firstLayer; fromLayer<2; fromLayer++){
-							for(int fromX = 0; fromX < SIZE_X[1]; fromX++){
-								for (int fromY = 0; fromY < SIZE_Y[1]; fromY++){					
+							for(int fromX = 0; fromX < SIZE_X[fromLayer]; fromX++){
+								for (int fromY = 0; fromY < SIZE_Y[fromLayer]; fromY++){					
 									for (int fromSite=0; fromSite<4; fromSite++){
-										for(int fromOrbital=0; fromOrbital<4; fromOrbital++){
+										for(int fromOrbital=3; fromOrbital<4; fromOrbital++){
 											if (abs(tCallBack.getHoppingAmplitude({kx, ky, toLayer, toX, toY, toSite, toOrbital, 0}, {kx, ky, fromLayer, fromX,fromY,fromSite, fromOrbital, 0})) > EPSILON){
 												for (int spin = 0; spin<2; spin++){
 													if(toLayer == fromLayer && toX == fromX && toY == fromY && toSite == fromSite)

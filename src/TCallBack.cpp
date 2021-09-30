@@ -29,7 +29,7 @@ TCallBack::TCallBack(double a, const Model& model): a(a), model(&model), slaterK
 }
 
 complex<double> TCallBack::getHoppingAmplitude(const Index &to, const Index &from) const{
-	Timer::tick(0);
+	
 	const complex<double> i(0,1);
 	int kx = to[0];
 	int ky = to[1];
@@ -42,8 +42,22 @@ complex<double> TCallBack::getHoppingAmplitude(const Index &to, const Index &fro
 		(2*(M_PI)/(unitCellSize[1]))*(ky/((double)(SIZE_KY))),
 		0
 	});
-	Timer::tock();
-	return radialAndAngularDependence(to, from)*exp(i*Vector3d::dotProduct(k, distanceMinimizingTranslation));
+
+	complex<double> result = 0;
+	for (int x=-1; x<2; x++){
+		Vector3d xTranslation = x*unitCellBasis[0];
+		for (int y=-1; y<2; y++){
+			Vector3d translation = xTranslation + y*unitCellBasis[1];
+			result += radialAndAngularDependence(
+				to, 
+				from, 
+				toCoordinate, 
+				fromCoordinate+translation
+			)*exp(i*Vector3d::dotProduct(k, translation));
+		}
+	};
+	// return radialAndAngularDependence(to, from)*exp(i*Vector3d::dotProduct(k, distanceMinimizingTranslation));
+	return result;
 } 
 Vector3d TCallBack::getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const {
 	double smallestNorm = std::numeric_limits<double>::infinity(); 		
@@ -63,8 +77,39 @@ Vector3d TCallBack::getDistanceMinimizingTranslation(const Vector3d &toCoordinat
 	return requiredTranslation;
 }
 
-complex<double> TCallBack::radialAndAngularDependence(const Index &to, const Index &from) const{
-	return radialAndAngularDependenceFull(to, from);
+
+complex<double> TCallBack::radialAndAngularDependenceFull(const TBTK::Index &to, const TBTK::Index &from,const TBTK::Vector3d &toCoordinate, const TBTK::Vector3d &fromCoordinate) const{
+	
+	// Vector3d toCoordinate=model->getGeometry().getCoordinate(to);
+	// Vector3d fromCoordinate=model->getGeometry().getCoordinate(from);
+
+	// Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
+	// Vector3d difference = fromCoordinate + distanceMinimizingTranslation - toCoordinate;
+	// double distance = difference.norm();
+
+	// double beta=1.9467973982212834;
+	// double alpha=-0.2*exp(+beta*(3.3/(a/sqrt(3)) - 1));
+	// double n = Vector3d::dotProduct(difference.unit(), {0, 0, 1});
+	// double Vppsigma = alpha*exp(-beta*(distance/(a/sqrt(3)) - 1));
+	// double Vpppi = -t*exp(-beta*(distance/(a/sqrt(3)) - 1));
+
+	//Just for Pz-Pz
+	// return (n*n)*Vppsigma+(1-(n*n))*Vpppi;
+
+	Vector3d difference = fromCoordinate - toCoordinate; 
+	SlaterKosterCalculator::Orbital toOrbital  = TCallBack::getOrbitalFromSubIndex(to[6]);
+	SlaterKosterCalculator::Orbital fromOrbital= TCallBack::getOrbitalFromSubIndex(from[6]);
+
+	return slaterKosterCalculator.calculate(toOrbital, fromOrbital, difference);
+}
+
+std::complex<double> TCallBack::radialAndAngularDependence(
+	const TBTK::Index &to, 
+	const TBTK::Index &from,	
+	const TBTK::Vector3d &toCoordinate, 
+	const TBTK::Vector3d &fromCoordinate
+) const{
+	return radialAndAngularDependenceFull(to, from, toCoordinate, fromCoordinate);
 	// switch(radialAndAngularMode){
 	// case RadialAndAngularMode::Full:
 	// 	return radialAndAngularDependenceFull(to, from);
@@ -78,30 +123,8 @@ complex<double> TCallBack::radialAndAngularDependence(const Index &to, const Ind
 	// 	);
 	// }
 }
-complex<double> TCallBack::radialAndAngularDependenceFull(const Index &to, const Index &from) const{
-	
-	Vector3d toCoordinate=model->getGeometry().getCoordinate(to);
-	Vector3d fromCoordinate=model->getGeometry().getCoordinate(from);
 
-	Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);
-	Vector3d difference = fromCoordinate + distanceMinimizingTranslation - toCoordinate;
-	// double distance = difference.norm();
-
-	SlaterKosterCalculator::Orbital toOrbital  = TCallBack::getOrbitalFromSubIndex(to[6]);
-	SlaterKosterCalculator::Orbital fromOrbital= TCallBack::getOrbitalFromSubIndex(from[6]);
-
-
-	// double beta=1.9467973982212834;
-	// double alpha=-0.2*exp(+beta*(3.3/(a/sqrt(3)) - 1));
-	// double n = Vector3d::dotProduct(difference.unit(), {0, 0, 1});
-	// double Vppsigma = alpha*exp(-beta*(distance/(a/sqrt(3)) - 1));
-	// double Vpppi = -t*exp(-beta*(distance/(a/sqrt(3)) - 1));
-
-	//Just for Pz-Pz
-	// return (n*n)*Vppsigma+(1-(n*n))*Vpppi;
-	return slaterKosterCalculator.calculate(toOrbital, fromOrbital, difference);
-}
-// complex<double> TCallBack::radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const{
+// complex<double> TCallBack::TCallBack::radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const{
 // 	Vector3d toCoordinate=model->getGeometry().getCoordinate(to);
 // 	Vector3d fromCoordinate=model->getGeometry().getCoordinate(from);
 // 	Vector3d distanceMinimizingTranslation = getDistanceMinimizingTranslation(toCoordinate, fromCoordinate);

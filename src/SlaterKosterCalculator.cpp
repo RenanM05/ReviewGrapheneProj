@@ -6,7 +6,7 @@ using namespace TBTK;
 
 SlaterKosterCalculator::SlaterKosterCalculator(double a):
 a(a),
-t(1.0),
+t(2.8),
 beta(3),//1.9467973982212834;
 alpha(-0.2*exp(+beta*(3.4/(a/sqrt(3)) - 1))),
 // alpha(-0.4*exp(+beta*(3.4/(a/sqrt(3)) - 1))),

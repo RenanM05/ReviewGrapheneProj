@@ -23,6 +23,10 @@ using namespace TBTK;
 using namespace Visualization::MatPlotLib;
 
 int main(int argc, char **argv){
+	
+	Timer::tick("Full calculation");
+	Timer::createAccumulator("0");
+	
 	///Initialize TBTK
 	Initialize();
 
@@ -35,6 +39,6 @@ int main(int argc, char **argv){
 
 	Graphene grapheneBandStructure(36);
 	grapheneBandStructure.runBandStructureCalculation();
-
+	Timer::printAccumulators();
 	return 0;
 };

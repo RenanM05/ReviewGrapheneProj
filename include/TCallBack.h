@@ -18,6 +18,8 @@
 #include <fstream>
 #include <limits>
 
+#include "SlaterKosterCalculator.h"
+
 using namespace std;
 using namespace TBTK;
 using namespace Visualization::MatPlotLib;
@@ -27,13 +29,12 @@ const complex<double> i(0,1);
 
 class TCallBack: public HoppingAmplitude::AmplitudeCallback{
 public: 
-	enum class RadialAndAngularMode{Full, NearestNeighbor};
+	// enum class RadialAndAngularMode{Full, NearestNeighbor};
 
 	TCallBack(double a, const Model& model);
-
 	complex<double> getHoppingAmplitude(const Index &to, const Index &from) const;
 
-	void setT(double t){this->t = t;}
+	// void setT(double t){this->t = t;}
 	void setSIZE_KX(int SIZE_KX){this-> SIZE_KX = SIZE_KX;}
 	void setSIZE_KY(int SIZE_KY){this-> SIZE_KY = SIZE_KY;}
 	void setSIZE_X(vector<int> SIZE_X){this-> SIZE_X = SIZE_X;}
@@ -42,7 +43,7 @@ public:
 	void setUnitCellBasis(vector<Vector3d> unitCellBasis){this-> unitCellBasis = unitCellBasis;}
 
 private:
-	double t;
+	// double t;
 	vector<int> SIZE_X;
 	vector<int> SIZE_Y;
 	vector<double> unitCellSize;
@@ -54,12 +55,36 @@ private:
 	double a;
 	const Model *model;
 
-	RadialAndAngularMode radialAndAngularMode;
+
+	SlaterKosterCalculator slaterKosterCalculator;
+	SlaterKosterCalculator::Orbital getOrbitalFromSubIndex(int subIndex) const;
+	// RadialAndAngularMode radialAndAngularMode;
 
 	Vector3d getDistanceMinimizingTranslation(const Vector3d &toCoordinate, const Vector3d &fromCoordinate) const;
 	complex<double> radialAndAngularDependence(const TBTK::Index &to, const TBTK::Index &from) const;
 	complex<double> radialAndAngularDependenceFull(const Index &to, const Index &from) const;
-	complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;
+	// complex<double> radialAndAngularDependenceNearestNeighbor(const Index &to, const Index &from) const;
+
+	
 };
+
+inline SlaterKosterCalculator::Orbital TCallBack::getOrbitalFromSubIndex(int subIndex) const{
+	switch(subIndex){
+	case 0:
+		return SlaterKosterCalculator::Orbital::s;
+	case 1:
+		return SlaterKosterCalculator::Orbital::px;
+	case 2:
+		return SlaterKosterCalculator::Orbital::py;
+	case 3:
+		return SlaterKosterCalculator::Orbital::pz;
+	default:
+		TBTKExit(
+			"TCallBack::getOrbitalSubIndex()",
+			"Invalid subindex '" << subIndex << "'. Must be 0-3.",
+			""
+		);
+	}
+}
 
 #endif 
